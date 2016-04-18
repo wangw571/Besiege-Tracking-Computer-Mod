@@ -253,7 +253,7 @@ namespace Blocks
         protected override void OnSimulateStart()
         {
             currentTarget = null;
-            炮弹速度 = 炮力.Value * 60;
+            炮弹速度 = 炮力.Value * 55;
             Audio = this.gameObject.AddComponent<AudioSource>();
             Audio.clip = resources["炮台旋转音效.ogg"].audioClip;
             Audio.loop = false;
@@ -298,13 +298,13 @@ namespace Blocks
                                 this.transform.position,
                                 targetVelo,
                                 currentTarget.transform.position,
-                                currentTarget.transform.forward,
+                                currentTarget.GetComponent<Rigidbody>().velocity.normalized,
                                     calculateLinearTrajectory(
                                         炮弹速度,
                                         this.transform.position,
                                         targetVelo,
                                         currentTarget.transform.position,
-                                        currentTarget.transform.forward
+                                        currentTarget.GetComponent<Rigidbody>().velocity.normalized
                                     ),
                                     Physics.gravity.y,
                                     size * 0.5f,
@@ -315,11 +315,12 @@ namespace Blocks
                         Vector3 rooo = Vector3.RotateTowards(this.transform.forward, LocalTargetDirection - this.transform.position, RotatingSpeed * size, RotatingSpeed * size);
                         //Debug.Log(LocalTargetDirection + "and" + this.transform.up + "and" + rooo);
                         //this.transform.rotation = Quaternion.LookRotation(rooo);
+                        LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
                         this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.forward, LocalTargetDirection, this.GetComponent<Rigidbody>(), 0.01f * size) * 360);
                         float mag = (this.transform.forward.normalized - LocalTargetDirection.normalized).magnitude;
                         if (mag > 0.01f)
                         {
-                            Audio.volume = mag * 0.2f * Math.Max((10 / (Vector3.Distance(this.transform.position, Camera.main.transform.position))), 1);
+                            Audio.volume = mag * 0.2f * Math.Max((10 / (Vector3.Distance(this.transform.position, GameObject.Find("Main Camera").transform.position))), 1);
                             Audio.Play();
                         }
                         else
@@ -372,8 +373,9 @@ namespace Blocks
             Vector3 gunDirection = new Vector3(hitPoint.x, gunPosition.y, hitPoint.z) - gunPosition;
             Quaternion gunRotation = Quaternion.FromToRotation(gunDirection, Vector3.forward);
             Vector3 localHitPoint = gunRotation * (hitPoint - gunPosition);
+            float currentCalculatedDistance = (hitPoint - gunPosition).magnitude;
 
-            float V = gunVelocity;
+            float V = (float)Math.Sqrt(gunVelocity * gunVelocity - 2 * AirDrag * currentCalculatedDistance);
             float X = localHitPoint.z;//z为前方
             float Y = localHitPoint.y;
             Vector2 TT = formulaProjectile(X, Y, V, G);
@@ -499,7 +501,7 @@ namespace Blocks
         protected override void OnSimulateStart()
         {
             currentTarget = null;
-            炮弹速度 = 炮力.Value * 60;
+            炮弹速度 = 炮力.Value * 55;
             Audio = this.gameObject.AddComponent<AudioSource>();
             Audio.clip = resources["炮台旋转音效.ogg"].audioClip;
             Audio.loop = false;
@@ -526,7 +528,7 @@ namespace Blocks
 
         protected override void OnSimulateFixedUpdate()
         {
-            size = 1 * this.transform.localScale.x * this.transform.localScale.y * this.transform.localScale.z;
+            size = 1;
             this.GetComponent<Rigidbody>().mass = 2f * size;
             if (AddPiece.isSimulating)
             {
@@ -544,13 +546,13 @@ namespace Blocks
                                 this.transform.position,
                                 targetVelo,
                                 currentTarget.transform.position,
-                                currentTarget.transform.forward,
+                                currentTarget.GetComponent<Rigidbody>().velocity.normalized,
                                     calculateLinearTrajectory(
                                         炮弹速度,
                                         this.transform.position,
                                         targetVelo,
                                         currentTarget.transform.position,
-                                        currentTarget.transform.forward
+                                        currentTarget.GetComponent<Rigidbody>().velocity.normalized
                                     ),
                                     Physics.gravity.y,
                                     size * 0.5f,
@@ -560,12 +562,13 @@ namespace Blocks
                         //this.transform.rotation.SetFromToRotation(this.transform.forward, LocalTargetDirection);
                         Vector3 rooo = Vector3.RotateTowards(this.transform.right, LocalTargetDirection - this.transform.position, RotatingSpeed * size, RotatingSpeed * size);
                         //Debug.Log(LocalTargetDirection + "and" + this.transform.up + "and" + rooo);
-                        //this.transform.rotation = Quaternion.LookRotation(rooo);
+                        //this.transform.rotation = Quaternion.LookRotation(rooo); 
+                        LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
                         this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.right, LocalTargetDirection, this.GetComponent<Rigidbody>(), 0.01f * size) * 360);
                         float mag = (this.transform.right.normalized - LocalTargetDirection.normalized).magnitude;
                         if (mag > 0.01f)
                         {
-                            Audio.volume = mag * 0.2f * Math.Max((10 / (Vector3.Distance(this.transform.position, Camera.main.transform.position))), 1);
+                            Audio.volume = mag * 0.2f * Math.Max((10 / (Vector3.Distance(this.transform.position, GameObject.Find("Main Camera").transform.position))), 1);
                             Audio.Play();
                         }
                         else
@@ -618,8 +621,9 @@ namespace Blocks
             Vector3 gunDirection = new Vector3(hitPoint.x, gunPosition.y, hitPoint.z) - gunPosition;
             Quaternion gunRotation = Quaternion.FromToRotation(gunDirection, Vector3.forward);
             Vector3 localHitPoint = gunRotation * (hitPoint - gunPosition);
+            float currentCalculatedDistance = localHitPoint.magnitude;
 
-            float V = gunVelocity;
+            float V = (float)Math.Sqrt(gunVelocity * gunVelocity - 2 * AirDrag * currentCalculatedDistance);
             float X = localHitPoint.z;//z为前方
             float Y = localHitPoint.y;
             Vector2 TT = formulaProjectile(X, Y, V, G);
