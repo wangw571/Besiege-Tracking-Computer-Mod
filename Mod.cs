@@ -9,7 +9,7 @@ namespace Blocks
 {
     public class TurretMod : BlockMod
     {
-        public override Version Version { get { return new Version("1.0"); } }
+        public override Version Version { get { return new Version("1.1"); } }
         public override string Name { get { return "Turret_Mod"; } }
         public override string DisplayName { get { return "Turret Mod"; } }
         public override string BesiegeVersion { get { return "v0.27"; } }
@@ -212,7 +212,7 @@ namespace Blocks
         private int iterativeCount = 0;
         public float 炮弹速度;
         private float size;
-        private float RotatingSpeed = 0.01f;
+        private float RotatingSpeed = 10f;
 
         public override void SafeAwake()
         {
@@ -290,6 +290,7 @@ namespace Blocks
                     {
                         float targetVelo = currentTarget.GetComponent<Rigidbody>().velocity.magnitude;
                         Vector3 LocalTargetDirection = currentTarget.transform.position;
+                        Debug.Log(transform.position);
                         if (炮力.Value != 0)
                         {
                             LocalTargetDirection = calculateNoneLinearTrajectory(
@@ -315,8 +316,8 @@ namespace Blocks
                         Vector3 rooo = Vector3.RotateTowards(this.transform.forward, LocalTargetDirection - this.transform.position, RotatingSpeed * size, RotatingSpeed * size);
                         //Debug.Log(LocalTargetDirection + "and" + this.transform.up + "and" + rooo);
                         //this.transform.rotation = Quaternion.LookRotation(rooo);
-                        LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
-                        this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.forward, LocalTargetDirection, this.GetComponent<Rigidbody>(), 0.01f * size) * 360);
+                        //LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
+                        this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.forward, LocalTargetDirection - this.transform.position*1, this.GetComponent<Rigidbody>(), 0.01f * size) * 360);
                         float mag = (this.transform.forward.normalized - LocalTargetDirection.normalized).magnitude;
                         if (mag > 0.01f)
                         {
@@ -460,7 +461,7 @@ namespace Blocks
         private int iterativeCount = 0;
         public float 炮弹速度;
         private float size;
-        private float RotatingSpeed = 0.01f;
+        private float RotatingSpeed = 10f;
 
         public override void SafeAwake()
         {
@@ -528,7 +529,7 @@ namespace Blocks
 
         protected override void OnSimulateFixedUpdate()
         {
-            size = 1;
+            size = 1 * this.transform.localScale.x * this.transform.localScale.y * this.transform.localScale.z;
             this.GetComponent<Rigidbody>().mass = 2f * size;
             if (AddPiece.isSimulating)
             {
@@ -538,6 +539,7 @@ namespace Blocks
                     {
                         float targetVelo = currentTarget.GetComponent<Rigidbody>().velocity.magnitude;
                         Vector3 LocalTargetDirection = currentTarget.transform.position;
+                        Debug.Log(transform.position);
                         if (炮力.Value != 0)
                         {
                             LocalTargetDirection = calculateNoneLinearTrajectory(
@@ -559,12 +561,12 @@ namespace Blocks
                                     float.PositiveInfinity
                                     );
                         }
-                        //this.transform.rotation.SetFromToRotation(this.transform.forward, LocalTargetDirection);
+                        //this.transform.rotation.SetFromToRotation(this.transform.right, LocalTargetDirection);
                         Vector3 rooo = Vector3.RotateTowards(this.transform.right, LocalTargetDirection - this.transform.position, RotatingSpeed * size, RotatingSpeed * size);
                         //Debug.Log(LocalTargetDirection + "and" + this.transform.up + "and" + rooo);
-                        //this.transform.rotation = Quaternion.LookRotation(rooo); 
-                        LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
-                        this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.right, LocalTargetDirection, this.GetComponent<Rigidbody>(), 0.01f * size) * 360);
+                        //this.transform.rotation = Quaternion.LookRotation(rooo);
+                        //LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
+                        this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.right, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size) * 360);
                         float mag = (this.transform.right.normalized - LocalTargetDirection.normalized).magnitude;
                         if (mag > 0.01f)
                         {
@@ -613,7 +615,7 @@ namespace Blocks
         Vector3 calculateNoneLinearTrajectory(float gunVelocity, float AirDrag, Vector3 gunPosition, float aircraftVelocity, Vector3 aircraftPosition, Vector3 aircraftDirection, Vector3 hitPoint, float G, float accuracy, float diff)
         {
             iterativeCount++;
-            //if (iterativeCount > 1000) { iterativeCount = 0; return currentTarget.transform.position; }
+            //if(iterativeCount > 1000) { iterativeCount = 0; return currentTarget.transform.position;  }
             if (hitPoint == Vector3.zero)
             {
                 return currentTarget.transform.position;
@@ -621,7 +623,7 @@ namespace Blocks
             Vector3 gunDirection = new Vector3(hitPoint.x, gunPosition.y, hitPoint.z) - gunPosition;
             Quaternion gunRotation = Quaternion.FromToRotation(gunDirection, Vector3.forward);
             Vector3 localHitPoint = gunRotation * (hitPoint - gunPosition);
-            float currentCalculatedDistance = localHitPoint.magnitude;
+            float currentCalculatedDistance = (hitPoint - gunPosition).magnitude;
 
             float V = (float)Math.Sqrt(gunVelocity * gunVelocity - 2 * AirDrag * currentCalculatedDistance);
             float X = localHitPoint.z;//z为前方
