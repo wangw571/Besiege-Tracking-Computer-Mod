@@ -321,11 +321,13 @@ namespace Blocks
                         float mag = (this.transform.forward.normalized - LocalTargetDirection.normalized).magnitude;
                         if (mag > 0.01f)
                         {
+                            this.GetComponent<Rigidbody>().freezeRotation = false;
                             Audio.volume = mag * 0.2f * Math.Max((10 / (Vector3.Distance(this.transform.position, GameObject.Find("Main Camera").transform.position))), 1);
                             Audio.Play();
                         }
                         else
                         {
+                            this.GetComponent<Rigidbody>().freezeRotation = true;
                             Audio.Stop();
                         }
                     }
@@ -539,7 +541,6 @@ namespace Blocks
                     {
                         float targetVelo = currentTarget.GetComponent<Rigidbody>().velocity.magnitude;
                         Vector3 LocalTargetDirection = currentTarget.transform.position;
-                        Debug.Log(transform.position);
                         if (炮力.Value != 0)
                         {
                             LocalTargetDirection = calculateNoneLinearTrajectory(
@@ -570,11 +571,13 @@ namespace Blocks
                         float mag = (this.transform.right.normalized - LocalTargetDirection.normalized).magnitude;
                         if (mag > 0.01f)
                         {
+                            this.GetComponent<Rigidbody>().freezeRotation = false;
                             Audio.volume = mag * 0.2f * Math.Max((10 / (Vector3.Distance(this.transform.position, GameObject.Find("Main Camera").transform.position))), 1);
                             Audio.Play();
                         }
                         else
                         {
+                            this.GetComponent<Rigidbody>().freezeRotation = true;
                             Audio.Stop();
                         }
                     }
