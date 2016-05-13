@@ -7,11 +7,11 @@ using UnityEngine;
 
 namespace Blocks
 {
-    public class TurretMod : BlockMod
+    public class TrackingComputerMod : BlockMod
     {
-        public override Version Version { get { return new Version("1.1"); } }
-        public override string Name { get { return "Turret_Mod"; } }
-        public override string DisplayName { get { return "Turret Mod"; } }
+        public override Version Version { get { return new Version("1.4"); } }
+        public override string Name { get { return "Tracking_Computer_Mod"; } }
+        public override string DisplayName { get { return "Tracking Computer Mod"; } }
         public override string BesiegeVersion { get { return "v0.27"; } }
         public override string Author { get { return "覅是"; } }
         protected Block TurretBlock = new Block()
@@ -19,14 +19,14 @@ namespace Blocks
             .ID(525)
 
             ///模块名称
-            .BlockName("Turret Block")
+            .BlockName("Tracking Computer I")
 
             ///模型信息
             .Obj(new List<Obj> { new Obj("turret.obj", //Obj
-                                         "turret.png", //贴图
-                                         new VisualOffset(new Vector3(1f, 1f, 1f), //Scale
+                                         "turret.png", //贴图 
+                                         new VisualOffset(new Vector3(1f, 1f, 1f)*0.06f, //Scale
                                                           new Vector3(0f, 0f, 0f), //Position
-                                                          new Vector3(0f, 0f, 0f)))//Rotation
+                                                          new Vector3(-90f, 0f, 0f)))//Rotation
             })
 
             ///在UI下方的选模块时的模样
@@ -36,7 +36,7 @@ namespace Blocks
 
             ///没啥好说的。
             .Components(new Type[] {
-                                    typeof(turret),
+                                    typeof(TrackingComputer),
             })
 
             ///给搜索用的关键词
@@ -51,12 +51,13 @@ namespace Blocks
             .Mass(2f)
 
             ///是否显示碰撞器（在公开你的模块的时候记得写false）
-            .ShowCollider(true)
+            .ShowCollider(false)
 
             ///碰撞器
             .CompoundCollider(new List<ColliderComposite> {
-                ColliderComposite.Box(new Vector3(0.7f, 0.7f, 1.3f), new Vector3(0f, 0f, 0.8f), new Vector3(0f, 0f, 0f)),
-                ColliderComposite.Capsule(0.35f,1.0f,Direction.Z,new Vector3(0,0,0.8f),Vector3.zero),/*
+                ColliderComposite.Box(new Vector3(1f, 1f, 1.2f), new Vector3(0f, 0f, 0.6f), new Vector3(0f, 0f, 0f)),
+                //ColliderComposite.Capsule(0.35f,1.0f,Direction.Z,new Vector3(0,0,0.8f),Vector3.zero),
+                /*
                                 ColliderComposite.Sphere(0.49f,                                //radius
                                                          new Vector3(-0.10f, -0.05f, 0.27f),   //Position
                                                          new Vector3(0f, 0f, 0f))              //Rotation
@@ -93,13 +94,13 @@ namespace Blocks
                                (AddingPoint)new BasePoint(true, true)         //底部连接点。第一个是指你能不能将其他模块安在该模块底部。第二个是指这个点是否是在开局时粘连其他链接点
                                                 .Motionable(true,true,true) //底点在X，Y，Z轴上是否是能够活动的。
                                                 .SetStickyRadius(0.5f),        //粘连距离
-                              new AddingPoint(new Vector3(0f, 0f, 1f), new Vector3(-180f, 00f, 360f),true).SetStickyRadius(0.3f),
-                              new AddingPoint(new Vector3(0f, 0f, 1f), new Vector3(-90f, 00f, 90f),true).SetStickyRadius(0.3f),
-                              new AddingPoint(new Vector3(0f, 0f, 1f), new Vector3(180f, 00f, 180f),true).SetStickyRadius(0.3f),
-                              new AddingPoint(new Vector3(0f, 0f, 1f), new Vector3(90f, 00f, 270f),true).SetStickyRadius(0.3f),
+                              new AddingPoint(new Vector3(0f, 0f, 0.65f), new Vector3(-180f, 00f, 360f),true).SetStickyRadius(0.3f),
+                              new AddingPoint(new Vector3(0f, 0f, 0.65f), new Vector3(-90f, 00f, 90f),true).SetStickyRadius(0.3f),
+                              new AddingPoint(new Vector3(0f, 0f, 0.65f), new Vector3(180f, 00f, 180f),true).SetStickyRadius(0.3f),
+                              new AddingPoint(new Vector3(0f, 0f, 0.65f), new Vector3(90f, 00f, 270f),true).SetStickyRadius(0.3f),
 
 
-                              new AddingPoint(new Vector3(0f, 0f, 1f), new Vector3(0f, -90f, 90f),true).SetStickyRadius(0.3f),
+                              new AddingPoint(new Vector3(0f, 0f, 0.65f), new Vector3(0f, -90f, 90f),true).SetStickyRadius(0.3f),
             });
         protected Block CormacksModifiedTrackingComputer​ = new Block()
             ///模块ID
@@ -111,9 +112,9 @@ namespace Blocks
             ///模型信息
             .Obj(new List<Obj> { new Obj("turret.obj", //Obj
                                          "Cormack\'s Modified Tracking Computer​.png", //贴图
-                                         new VisualOffset(new Vector3(1f, 1f, 1f), //Scale
-                                                          new Vector3(0f, 0f, 0f), //Position
-                                                          new Vector3(0f, 0f, 0f)))//Rotation
+                                         new VisualOffset(new Vector3(1f, 1f, 1f)*0.06f, //Scale
+                                                          new Vector3(0.5f, 1f, -0.5f), //Position
+                                                          new Vector3(-90f, 90f, 0f)))//Rotation
             })
 
             ///在UI下方的选模块时的模样
@@ -142,8 +143,9 @@ namespace Blocks
 
             ///碰撞器
             .CompoundCollider(new List<ColliderComposite> {
-                ColliderComposite.Box(new Vector3(0.7f, 0.7f, 1.3f), new Vector3(0f, 0f, 0.8f), new Vector3(0f, 0f, 0f)),
-                ColliderComposite.Capsule(0.35f,1.0f,Direction.Z,new Vector3(0,0,0.8f),Vector3.zero),/*
+                ColliderComposite.Box(new Vector3(1f, 1.3f, 1f), new Vector3(0f, 0f, 0.5f), new Vector3(0f, 0f, 0f)),
+                //ColliderComposite.Capsule(0.35f,1.0f,Direction.Z,new Vector3(0,0,0.8f),Vector3.zero),
+                /*
                                 ColliderComposite.Sphere(0.49f,                                //radius
                                                          new Vector3(-0.10f, -0.05f, 0.27f),   //Position
                                                          new Vector3(0f, 0f, 0f))              //Rotation
@@ -198,10 +200,13 @@ namespace Blocks
     }
 
 
-    public class turret : BlockScript
+    public class TrackingComputer : BlockScript
     {
         protected MKey Key1;
         protected MSlider 炮力;
+        protected MSlider 精度;
+        protected MSlider 计算间隔;
+        protected MMenu 模式;
         //protected MToggle 不聪明模式;
 
         private RaycastHit hitt;
@@ -213,18 +218,33 @@ namespace Blocks
         public float 炮弹速度;
         private float size;
         private float RotatingSpeed = 10f;
+        public float 记录器 = 0;
 
         public override void SafeAwake()
         {
             Key1 = AddKey("Lock On", //按键信息
                                  "Locked",           //名字
                                  KeyCode.T);       //默认按键
+            List<string> chaos = new List<String> { "Turret Tracking \nComputer", "Missile Gudiance \nComputer", "Camera Tracking \nComputer" };
+            模式 = AddMenu("Mode",0, chaos);
 
             炮力 = AddSlider("Cannon Slider",       //滑条信息
                                     "CanonPower",       //名字
                                     1f,            //默认值
                                     0f,          //最小值
                                     2f);           //最大值
+
+            精度 = AddSlider("Precision",       //滑条信息
+                                    "Precision",       //名字
+                                    0.5f,            //默认值
+                                    0.01f,          //最小值
+                                    10f);           //最大值
+
+            计算间隔 = AddSlider("Calculation per second",       //滑条信息
+                                    "CalculationPerSecond",       //名字
+                                    100f,            //默认值
+                                    1f,          //最小值
+                                    100f);           //最大值
 
             /*不聪明模式 = AddToggle("Disable Smart Attack",   //toggle信息
                                        "NoSA",       //名字
@@ -250,6 +270,13 @@ namespace Blocks
             LoadMapperValues(data);
             if (data.WasSimulationStarted) return;
         }
+
+        protected override void BuildingUpdate()
+        {
+            炮力.DisplayInMapper = 模式.Value == 0;
+            计算间隔.DisplayInMapper = 模式.Value == 0 ^ 模式.Value == 1;
+            精度.DisplayInMapper = 模式.Value == 0 ^ 模式.Value == 1;
+        }
         protected override void OnSimulateStart()
         {
             currentTarget = null;
@@ -266,33 +293,51 @@ namespace Blocks
         protected override void OnSimulateUpdate()
         {
             //Trail.GetComponent<TrailRenderer>().material.color = Color.white;
-            if (Key1.IsDown)
+            if (Key1.IsPressed)
             {
                 if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hitt, float.PositiveInfinity))
                 {
-                    if (hitt.transform.gameObject != this)
+                    if (hitt.transform.position != this.transform.position)
                     {
                         currentTarget = hitt.transform.gameObject;
                     }
                 }
-            }            
+            }
+
+            if(模式.Value == 2)
+            {
+                CameraTrackingComputerMode();
+            }
         }
 
         protected override void OnSimulateFixedUpdate()
+        {
+            if (模式.Value == 0)
+            {
+                TurretTrackingComputerMode();
+            }
+            else if (模式.Value == 1)
+            {
+                MissileGuidanceComputerMode();
+            }
+                }
+        void TurretTrackingComputerMode()
         {
             size = 1 * this.transform.localScale.x * this.transform.localScale.y * this.transform.localScale.z;
             this.GetComponent<Rigidbody>().mass = 2f * size;
             if (AddPiece.isSimulating)
             {
+                记录器 += 计算间隔.Value / 100;
                 if (currentTarget)
                 {
-                    if (currentTarget.GetComponent<Rigidbody>())
+
+                    if (currentTarget.GetComponent<Rigidbody>() && currentTarget.transform.position != this.transform.position)
                     {
-                        float targetVelo = currentTarget.GetComponent<Rigidbody>().velocity.magnitude;
                         Vector3 LocalTargetDirection = currentTarget.transform.position;
-                        Debug.Log(transform.position);
-                        if (炮力.Value != 0)
+                        if (炮力.Value != 0 && 记录器 >= 1)
                         {
+                            float targetVelo = currentTarget.GetComponent<Rigidbody>().velocity.magnitude;
+                            记录器 = 0;
                             LocalTargetDirection = calculateNoneLinearTrajectory(
                                 炮弹速度,
                                 0.2f,
@@ -308,7 +353,7 @@ namespace Blocks
                                         currentTarget.GetComponent<Rigidbody>().velocity.normalized
                                     ),
                                     Physics.gravity.y,
-                                    size * 0.5f,
+                                    size * 精度.Value,
                                     float.PositiveInfinity
                                     );
                         }
@@ -317,7 +362,7 @@ namespace Blocks
                         //Debug.Log(LocalTargetDirection + "and" + this.transform.up + "and" + rooo);
                         //this.transform.rotation = Quaternion.LookRotation(rooo);
                         //LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
-                        this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.forward, LocalTargetDirection - this.transform.position*1, this.GetComponent<Rigidbody>(), 0.01f * size) * 360);
+                        this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.forward, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size) * 360);
                         float mag = (this.transform.forward.normalized - LocalTargetDirection.normalized).magnitude;
                         if (mag > 0.01f)
                         {
@@ -333,8 +378,75 @@ namespace Blocks
                     }
                 }
             }
-                    
+        }
+        void MissileGuidanceComputerMode()
+        {
+            size = 1 * this.transform.localScale.x * this.transform.localScale.y * this.transform.localScale.z;
+            this.GetComponent<Rigidbody>().mass = 2f * size;
+            if (AddPiece.isSimulating)
+            {
+                记录器 += 计算间隔.Value / 100;
+                if (currentTarget)
+                {
+                    if (currentTarget.GetComponent<Rigidbody>() && currentTarget.transform.position != this.transform.position)
+                    {
+                        Vector3 LocalTargetDirection = currentTarget.transform.position;
+                        if (记录器 >= 1)
+                        {
+                            炮弹速度 = this.GetComponent<Rigidbody>().velocity.magnitude;
+                            float targetVelo = currentTarget.GetComponent<Rigidbody>().velocity.magnitude;
+                            记录器 = 0;
+                            LocalTargetDirection = calculateNoneLinearTrajectory(
+                                炮弹速度 + 0.001f,
+                                0.2f,
+                                this.transform.position,
+                                targetVelo,
+                                currentTarget.transform.position,
+                                currentTarget.GetComponent<Rigidbody>().velocity.normalized,
+                                    calculateLinearTrajectory(
+                                        炮弹速度,
+                                        this.transform.position,
+                                        targetVelo,
+                                        currentTarget.transform.position,
+                                        currentTarget.GetComponent<Rigidbody>().velocity.normalized
+                                    ),
+                                    Physics.gravity.y,
+                                    size * 精度.Value,
+                                    float.PositiveInfinity
+                                    );
+                        }
+                        //this.transform.rotation.SetFromToRotation(this.transform.forward, LocalTargetDirection);
+                        Vector3 rooo = Vector3.RotateTowards(this.transform.forward, LocalTargetDirection - this.transform.position, RotatingSpeed * size, RotatingSpeed * size);
+                        //Debug.Log(LocalTargetDirection + "and" + this.transform.up + "and" + rooo);
+                        //this.transform.rotation = Quaternion.LookRotation(rooo);
+                        //LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
+                        this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.forward, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size) * 360);
+                        float mag = (this.transform.forward.normalized - LocalTargetDirection.normalized).magnitude;
+                        if (mag > 0.01f)
+                        {
+                            this.GetComponent<Rigidbody>().freezeRotation = false;
+                            Audio.volume = mag * 0.2f * Math.Max((10 / (Vector3.Distance(this.transform.position, GameObject.Find("Main Camera").transform.position))), 1);
+                            Audio.Play();
+                        }
+                        else
+                        {
+                            this.GetComponent<Rigidbody>().freezeRotation = true;
+                            Audio.Stop();
+                        }
+                    }
                 }
+            }
+        }
+        void CameraTrackingComputerMode()
+        {
+            if (AddPiece.isSimulating)
+            {
+                if (currentTarget)
+                {
+                    this.transform.LookAt(currentTarget.transform.position);
+                }
+            }
+        }
         Vector2 formulaProjectile(float X, float Y, float V, float G)
         {
             if (G == 0)
@@ -368,8 +480,8 @@ namespace Blocks
         Vector3 calculateNoneLinearTrajectory(float gunVelocity, float AirDrag, Vector3 gunPosition, float aircraftVelocity,Vector3 aircraftPosition, Vector3 aircraftDirection, Vector3 hitPoint, float G, float accuracy, float diff)
         {
             iterativeCount++;
-            //if(iterativeCount > 1000) { iterativeCount = 0; return currentTarget.transform.position;  }
-            if (hitPoint == Vector3.zero)
+            if(iterativeCount > 512) { iterativeCount = 0; return hitPoint;  }
+            if (hitPoint == Vector3.zero ^ gunVelocity < 1)
             {
                 return currentTarget.transform.position;
             }
@@ -384,6 +496,7 @@ namespace Blocks
             Vector2 TT = formulaProjectile(X, Y, V, G);
             if (TT == Vector2.zero)
             {
+                iterativeCount = 0;
                 return currentTarget.transform.position;
             }
             float VT = aircraftVelocity;
@@ -394,6 +507,7 @@ namespace Blocks
             float diff1 = (newHitPoint - hitPoint).magnitude;
             if (diff1 > diff)
             {
+                iterativeCount = 0;
                 return currentTarget.transform.position;
             }
             if (diff1 < accuracy)
@@ -401,6 +515,7 @@ namespace Blocks
                 gunRotation = Quaternion.Inverse(gunRotation);
                 Y = Mathf.Tan(TT.x) * X;
                 newHitPoint = gunRotation * new Vector3(0, Y, X) + gunPosition;
+                iterativeCount = 0;
                 return newHitPoint;
             }
             return calculateNoneLinearTrajectory(gunVelocity, AirDrag, gunPosition, aircraftVelocity, aircraftPosition, aircraftDirection, newHitPoint, G, accuracy, diff1);
@@ -453,6 +568,10 @@ namespace Blocks
     {
         protected MKey Key1;
         protected MSlider 炮力;
+        protected MSlider 精度;
+        protected MSlider 计算间隔;
+        protected MSlider 模块id;
+        protected MToggle 是否使用;
         //protected MToggle 不聪明模式;
 
         private RaycastHit hitt;
@@ -464,6 +583,7 @@ namespace Blocks
         public float 炮弹速度;
         private float size;
         private float RotatingSpeed = 10f;
+        public float 记录器 = 0;
 
         public override void SafeAwake()
         {
@@ -477,6 +597,25 @@ namespace Blocks
                                     0f,          //最小值
                                     2f);           //最大值
 
+            精度 = AddSlider("Precision",       //滑条信息
+                                    "Precision",       //名字
+                                    0.5f,            //默认值
+                                    0.01f,          //最小值
+                                    20f);           //最大值
+
+            计算间隔 = AddSlider("Calculation per second",       //滑条信息
+                                    "CalculationPerSecond",       //名字
+                                    100f,            //默认值
+                                    0.01f,          //最小值
+                                    100f);           //最大值
+
+            模块id = AddSlider("First Target to lock",       //滑条信息
+                                    "FirstTarget",       //名字
+                                    2f,            //默认值
+                                    0f,          //最小值
+                                    60f);           //最大值
+
+            是否使用 = AddToggle("Use First Target \nTo Lock Function", "USE", false);
             /*不聪明模式 = AddToggle("Disable Smart Attack",   //toggle信息
                                        "NoSA",       //名字
                                        false);             //默认状态*/
@@ -492,6 +631,7 @@ namespace Blocks
             BlockMapper.CurrentInstance.Paste();
             yield break;
         }
+
         public override void OnSave(XDataHolder data)
         {
             SaveMapperValues(data);
@@ -500,6 +640,10 @@ namespace Blocks
         {
             LoadMapperValues(data);
             if (data.WasSimulationStarted) return;
+        }
+        protected override void BuildingUpdate()
+        {
+            模块id.DisplayInMapper = 是否使用.IsActive;
         }
         protected override void OnSimulateStart()
         {
@@ -511,6 +655,25 @@ namespace Blocks
             Audio.volume = 0.2f;
             this.GetComponent<ConfigurableJoint>().breakForce = Mathf.Infinity;
             this.GetComponent<ConfigurableJoint>().breakTorque = Mathf.Infinity;
+            if (是否使用.IsActive)
+            {
+                GameObject furthestTarget = null;
+                foreach (Transform FirstTarget in Machine.Active().SimulationMachine)
+                {
+                    if (FirstTarget.GetComponent<MachineTrackerMyId>().myId == (int)模块id.Value)
+                    {
+                        try
+                        {
+                            if (this.transform.InverseTransformPoint(furthestTarget.transform.position).sqrMagnitude < this.transform.InverseTransformPoint(FirstTarget.transform.position).sqrMagnitude)
+                            {
+                                furthestTarget = FirstTarget.gameObject;
+                            }
+                        }
+                        catch { furthestTarget = FirstTarget.gameObject; }
+                    }
+                }
+                if(furthestTarget != null)currentTarget = furthestTarget;
+            }
             //this.GetComponent<Rigidbody>().angularDrag = 20;
             //this.GetComponent<Rigidbody>().maxAngularVelocity = 2f;
         }
@@ -535,14 +698,17 @@ namespace Blocks
             this.GetComponent<Rigidbody>().mass = 2f * size;
             if (AddPiece.isSimulating)
             {
+                记录器 += 计算间隔.Value / 100;
                 if (currentTarget)
                 {
-                    if (currentTarget.GetComponent<Rigidbody>())
+                    
+                    if (currentTarget.GetComponent<Rigidbody>() && currentTarget.transform.position != this.transform.position)
                     {
-                        float targetVelo = currentTarget.GetComponent<Rigidbody>().velocity.magnitude;
                         Vector3 LocalTargetDirection = currentTarget.transform.position;
-                        if (炮力.Value != 0)
+                        if (炮力.Value != 0 && 记录器 >= 1)
                         {
+                        float targetVelo = currentTarget.GetComponent<Rigidbody>().velocity.magnitude;
+                            记录器 = 0;
                             LocalTargetDirection = calculateNoneLinearTrajectory(
                                 炮弹速度,
                                 0.2f,
@@ -558,7 +724,7 @@ namespace Blocks
                                         currentTarget.GetComponent<Rigidbody>().velocity.normalized
                                     ),
                                     Physics.gravity.y,
-                                    size * 0.5f,
+                                    size * 精度.Value,
                                     float.PositiveInfinity
                                     );
                         }
@@ -618,10 +784,10 @@ namespace Blocks
         Vector3 calculateNoneLinearTrajectory(float gunVelocity, float AirDrag, Vector3 gunPosition, float aircraftVelocity, Vector3 aircraftPosition, Vector3 aircraftDirection, Vector3 hitPoint, float G, float accuracy, float diff)
         {
             iterativeCount++;
-            //if(iterativeCount > 1000) { iterativeCount = 0; return currentTarget.transform.position;  }
-            if (hitPoint == Vector3.zero)
+            if (iterativeCount > 512) { iterativeCount = 0; return hitPoint; }
+            if (hitPoint == Vector3.zero ^ hitPoint == gunPosition)
             {
-                return currentTarget.transform.position;
+                return aircraftPosition;
             }
             Vector3 gunDirection = new Vector3(hitPoint.x, gunPosition.y, hitPoint.z) - gunPosition;
             Quaternion gunRotation = Quaternion.FromToRotation(gunDirection, Vector3.forward);
@@ -634,7 +800,8 @@ namespace Blocks
             Vector2 TT = formulaProjectile(X, Y, V, G);
             if (TT == Vector2.zero)
             {
-                return currentTarget.transform.position;
+                iterativeCount = 0;
+                return aircraftPosition;
             }
             float VT = aircraftVelocity;
             Vector3 PT = aircraftPosition;
@@ -644,13 +811,15 @@ namespace Blocks
             float diff1 = (newHitPoint - hitPoint).magnitude;
             if (diff1 > diff)
             {
-                return currentTarget.transform.position;
+                iterativeCount = 0;
+                return aircraftPosition;
             }
             if (diff1 < accuracy)
             {
                 gunRotation = Quaternion.Inverse(gunRotation);
                 Y = Mathf.Tan(TT.x) * X;
                 newHitPoint = gunRotation * new Vector3(0, Y, X) + gunPosition;
+                iterativeCount = 0;
                 return newHitPoint;
             }
             return calculateNoneLinearTrajectory(gunVelocity, AirDrag, gunPosition, aircraftVelocity, aircraftPosition, aircraftDirection, newHitPoint, G, accuracy, diff1);
@@ -698,7 +867,7 @@ namespace Blocks
             Quaternion q = rb.rotation * rb.inertiaTensorRotation;                    // transform inertia tensor
             return q * Vector3.Scale(rb.inertiaTensor, (Quaternion.Inverse(q) * w2)); // calculate final torque
         }
-    }
+    } 
     //Physics stuff
 }
     
