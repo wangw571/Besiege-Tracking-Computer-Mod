@@ -9,7 +9,7 @@ namespace Blocks
 {
     public class TrackingComputerMod : BlockMod
     {
-        public override Version Version { get { return new Version("2.0"); } }
+        public override Version Version { get { return new Version("2.1"); } }
         public override string Name { get { return "Tracking_Computer_Mod"; } }
         public override string DisplayName { get { return "Tracking Computer Mod"; } }
         public override string BesiegeVersion { get { return "v0.27"; } }
@@ -768,7 +768,7 @@ namespace Blocks
             {
                 if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hitt, float.PositiveInfinity))
                 {
-                    if (hitt.transform.position != this.transform.position && !hitt.transform.GetComponentInParent<MachineTrackerMyId>().name.Contains("IsCloaked"))
+                    if (hitt.transform.position != this.transform.position)
                     {
                         currentTarget = hitt.transform.gameObject;
                     }
@@ -803,7 +803,8 @@ namespace Blocks
             this.GetComponent<Rigidbody>().mass = 2f * size;
             float FireProg = this.GetComponentInChildren<FireController>().fireProgress;
             if (currentTarget)
-                if (currentTarget.GetComponentInParent<MachineTrackerMyId>().gameObject.name.Contains("IsCloaked"))
+                if (currentTarget.GetComponentInParent<MachineTrackerMyId>())
+                    if (currentTarget.GetComponentInParent<MachineTrackerMyId>().gameObject.name.Contains("IsCloaked"))
                     currentTarget = null;
             if (AddPiece.isSimulating && !HasBurnedOut())
             {
