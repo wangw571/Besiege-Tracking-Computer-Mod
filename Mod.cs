@@ -9,7 +9,7 @@ namespace Blocks
 {
     public class TrackingComputerMod : BlockMod
     {
-        public override Version Version { get { return new Version("2.1"); } }
+        public override Version Version { get { return new Version("2.11"); } }
         public override string Name { get { return "Tracking_Computer_Mod"; } }
         public override string DisplayName { get { return "Tracking Computer Mod"; } }
         public override string BesiegeVersion { get { return "v0.27"; } }
@@ -215,16 +215,22 @@ namespace Blocks
 
         private RaycastHit hitt;
         private RaycastHit hitt2;
+        private bool IHaveConnectedWithCannons = false;
+        private bool IsOverLoaded = false;
         private GameObject currentTarget;
         private Vector3 targetPoint;
         private AudioSource Audio;
         private int iterativeCount = 0;
         public float 炮弹速度;
-        public Vector3 导弹模式前一帧速度;
+        public Vector3 前一帧速度;
         private float size;
-        private float RotatingSpeed = 10f;
+        private float RotatingSpeed = 4f;
         public float 记录器 = 0;
         public Vector3 默认朝向;
+        public Transform 只有一门炮也是没有问题的;
+        public bool 但是有两门炮 = false;
+        
+
 
         public override void SafeAwake()
         {
@@ -315,7 +321,19 @@ namespace Blocks
                 默认朝向 = this.transform.forward;
             }
             catch { 默认朝向 = Vector3.zero; }
-                //this.GetComponent<Rigidbody>().angularDrag = 20;
+            if (模式.Value == 1)
+            {
+                this.GetComponentInChildren<MeshFilter>().mesh = resources["MissileModule.obj"].mesh;
+                this.GetComponentInChildren<BoxCollider>().size = new Vector3(0.7f, 0.7f, 1.3f);
+                this.GetComponentInChildren<BoxCollider>().center = new Vector3(0f, 0f, 0.8f);
+            }
+            else
+            {
+                this.GetComponentInChildren<MeshFilter>().mesh = resources["turret.obj"].mesh;
+                this.GetComponentInChildren<BoxCollider>().size = new Vector3(1f, 1f, 1.2f);
+                this.GetComponentInChildren<BoxCollider>().center = new Vector3(0f, 0f, 0.6f);
+            }
+            //this.GetComponent<Rigidbody>().angularDrag = 20;
             //this.GetComponent<Rigidbody>().maxAngularVelocity = 2f;
         }
         protected override void OnSimulateUpdate()
@@ -346,6 +364,25 @@ namespace Blocks
             {
                 CameraTrackingComputerMode();
             }
+            else if (模式.Value == 0 && !IHaveConnectedWithCannons)
+            {
+                IHaveConnectedWithCannons = false;
+                foreach (Joint Jo in this.GetComponent<GenericBlock>().jointsToMe)
+                {
+                    CanonBlock cb = Jo.GetComponentInParent<CanonBlock>();
+                    if (cb)
+                    {
+                        cb.knockbackSpeed = 4250;
+                        IHaveConnectedWithCannons = true;
+                    }
+                    但是有两门炮 = 只有一门炮也是没有问题的 == null;
+                    if (jointsToMe.Count == 1)
+                    {
+                        只有一门炮也是没有问题的 = cb.transform;
+                    }
+                }
+            }
+            
         }
 
         protected override void OnSimulateFixedUpdate()
@@ -355,14 +392,25 @@ namespace Blocks
                 if (currentTarget.GetComponentInParent<MachineTrackerMyId>())
                     if (currentTarget.GetComponentInParent<MachineTrackerMyId>().gameObject.name.Contains("IsCloaked"))
                         currentTarget = null;
-            if (模式.Value == 0)
+            if (!IsOverLoaded)
+            {
+                IsOverLoaded = ((前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 2500 && 模式.Value == 0 && !IHaveConnectedWithCannons) 
+                    || 
+                    (IHaveConnectedWithCannons && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 176400 && 模式.Value == 0)
+                    || 
+                    (模式.Value == 1 && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 640000)
+                    ;
+            }
+
+            if (模式.Value == 0 && !IsOverLoaded)
             {
                 TurretTrackingComputerMode();
             }
-            else if (模式.Value == 1)
+            else if (模式.Value == 1 && !IsOverLoaded)
             {
                 MissileGuidanceComputerMode();
             }
+            
         }
         void TurretTrackingComputerMode()
         {
@@ -371,6 +419,10 @@ namespace Blocks
             float FireProg = this.GetComponentInChildren<FireController>().fireProgress;
             if (AddPiece.isSimulating)
             {
+                if(只有一门炮也是没有问题的 && !但是有两门炮)
+                {
+                    炮弹速度 = 只有一门炮也是没有问题的.GetComponent<BlockBehaviour>().Sliders[0].Value * 55;
+                }
                 记录器 += (计算间隔.Value / 100) * (1 - FireProg);
                 Vector3 LocalTargetDirection = this.transform.position + 默认朝向 * 2;
 
@@ -409,20 +461,22 @@ namespace Blocks
                 //Debug.Log(LocalTargetDirection + "and" + this.transform.up + "and" + rooo);
                 //this.transform.rotation = Quaternion.LookRotation(rooo);
                 //LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
-                this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.forward, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size) * 360);
+                Vector3 calculated = (getCorrTorque(this.transform.forward, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size) * Mathf.Rad2Deg).normalized * RotatingSpeed;
+                this.GetComponent<Rigidbody>().angularVelocity = calculated;
                 float mag = (this.transform.forward.normalized - LocalTargetDirection.normalized).magnitude;
-
-                if (mag > 0.01f)
+                Debug.Log(Vector3.Angle(transform.forward, LocalTargetDirection - this.transform.position * 1));
+                if (Vector3.Angle(transform.forward, LocalTargetDirection - this.transform.position * 1) > 精度.Value)
                 {
-                    this.GetComponent<Rigidbody>().freezeRotation = false;
+                    //this.GetComponent<Rigidbody>().freezeRotation = false;
                     Audio.volume = mag * 0.2f * Math.Max((10 / (Vector3.Distance(this.transform.position, GameObject.Find("Main Camera").transform.position))), 1);
                     Audio.Play();
                 }
                 else
                 {
-                    if (炮力.Value != 0) this.GetComponent<Rigidbody>().freezeRotation = true;
+                    //if (炮力.Value != 0) this.GetComponent<Rigidbody>().freezeRotation = true;
                     Audio.Stop();
                 }
+                前一帧速度 = this.rigidbody.velocity;
             }
         }
         void MissileGuidanceComputerMode()
@@ -430,9 +484,12 @@ namespace Blocks
             size = 1 * this.transform.localScale.x * this.transform.localScale.y * this.transform.localScale.z;
             this.GetComponent<Rigidbody>().mass = 2f * size;
 
-            this.GetComponent<ConfigurableJoint>().angularXMotion = ConfigurableJointMotion.Locked;
-            this.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
-            this.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
+            /*if (this.GetComponent<ConfigurableJoint>())
+            {
+                this.GetComponent<ConfigurableJoint>().angularXMotion = ConfigurableJointMotion.Locked;
+                this.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
+                this.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
+            }*/
 
             this.GetComponentInChildren<BoxCollider>().size = new Vector3(0.7f, 0.7f, 1.3f);
             this.GetComponentInChildren<BoxCollider>().center = new Vector3(0f, 0f, 0.8f);
@@ -453,7 +510,7 @@ namespace Blocks
                             记录器 = 0;
                             LocalTargetDirection = calculateNoneLinearTrajectory(
                                 炮弹速度 + 0.001f,
-                                (currentTarget.GetComponent<Rigidbody>().velocity - 导弹模式前一帧速度).magnitude,
+                                (currentTarget.GetComponent<Rigidbody>().velocity - 前一帧速度).magnitude,
                                 this.transform.position,
                                 targetVelo,
                                 currentTarget.transform.position,
@@ -475,17 +532,14 @@ namespace Blocks
                         //Debug.Log(LocalTargetDirection + "and" + this.transform.up + "and" + rooo);
                         //this.transform.rotation = Quaternion.LookRotation(rooo);
                         //LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
-                        this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.forward, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size) * 360);
-                        float mag = (this.transform.forward.normalized - LocalTargetDirection.normalized).magnitude;
-                        if (mag > 0.01f)
+                        float mag = (LocalTargetDirection.normalized - transform.forward.normalized).magnitude;
+                        Vector3 TargetDirection = (getCorrTorque(this.transform.forward, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size * Mathf.Rad2Deg).normalized);
+                        if (TargetDirection.magnitude > 5)
                         {
-                            this.GetComponent<Rigidbody>().freezeRotation = false;
+                            this.GetComponent<Rigidbody>().angularVelocity = (TargetDirection * RotatingSpeed*2);
                         }
-                        else
-                        {
-                            this.GetComponent<Rigidbody>().freezeRotation = true;
-                        }
-                        导弹模式前一帧速度 = currentTarget.GetComponent<Rigidbody>().velocity;
+                        else { Debug.Log("找不到目标!" + mag * Mathf.Sign(Vector3.Dot(LocalTargetDirection, this.transform.forward))); }
+                        前一帧速度 = currentTarget.GetComponent<Rigidbody>().velocity;
                     }
                 }
             }
@@ -793,6 +847,14 @@ namespace Blocks
                     {
                         currentTarget = hitt.transform.gameObject;
                     }
+                }
+            }
+            foreach (Joint Jo in this.GetComponent<GenericBlock>().jointsToMe)
+            {
+                CanonBlock cb = Jo.GetComponentInParent<CanonBlock>();
+                if(cb)
+                {
+                    cb.knockbackSpeed = 500;
                 }
             }
         }
