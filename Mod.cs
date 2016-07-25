@@ -205,6 +205,127 @@ namespace Blocks
 
     public class TrackingComputer : BlockScript
     {
+        Vector2 formulaProjectile(float X, float Y, float V, float G)
+        {
+            if (G == 0)
+            {
+                float THETA = Mathf.Atan(Y / X);
+                float T = (Y / Mathf.Sin(THETA)) / V;
+                return (new Vector2(THETA, T));
+            }
+            else
+            {
+                float DELTA = Mathf.Pow(V, 4) - G * (G * X * X - 2 * Y * V * V);
+                if (DELTA < 0)
+                {
+                    return Vector2.zero;
+                }
+                float THETA1 = Mathf.Atan((-(V * V) + Mathf.Sqrt(DELTA)) / (G * X));
+                float THETA2 = Mathf.Atan((-(V * V) - Mathf.Sqrt(DELTA)) / (G * X));
+                if (THETA1 > THETA2)
+                    THETA1 = THETA2;
+                float T = X / (V * Mathf.Cos(THETA1));
+                return new Vector2(THETA1, T);
+            }
+        }
+
+        Vector3 formulaTarget(float VT, Vector3 PT, Vector3 DT, float TT)
+        {
+            Vector3 newPosition = PT + DT * (VT * TT);
+            return newPosition;
+        }
+
+        Vector3 calculateNoneLinearTrajectory(float gunVelocity, float AirDrag, Vector3 gunPosition, float aircraftVelocity, Vector3 aircraftPosition, Vector3 aircraftDirection, Vector3 hitPoint, float G, float accuracy, float diff)
+        {
+            iterativeCount++;
+            if (iterativeCount > 512) { iterativeCount = 0; return hitPoint; }
+            if (hitPoint == Vector3.zero || gunVelocity < 1)
+            {
+                return currentTarget.transform.position;
+            }
+            Vector3 gunDirection = new Vector3(hitPoint.x, gunPosition.y, hitPoint.z) - gunPosition;
+            Quaternion gunRotation = Quaternion.FromToRotation(gunDirection, Vector3.forward);
+            Vector3 localHitPoint = gunRotation * (hitPoint - gunPosition);
+            float currentCalculatedDistance = (hitPoint - gunPosition).magnitude;
+
+            float V = (float)Math.Sqrt(gunVelocity * gunVelocity - 2 * AirDrag * currentCalculatedDistance);
+            float X = localHitPoint.z;//z为前方
+            float Y = localHitPoint.y;
+            Vector2 TT = formulaProjectile(X, Y, V, G);
+            if (TT == Vector2.zero)
+            {
+                iterativeCount = 0;
+                return currentTarget.transform.position;
+            }
+            float VT = aircraftVelocity;
+            Vector3 PT = aircraftPosition;
+            Vector3 DT = aircraftDirection;
+            float T = TT.y;
+            Vector3 newHitPoint = formulaTarget(VT, PT, DT, T);
+            float diff1 = (newHitPoint - hitPoint).magnitude;
+            if (diff1 > diff)
+            {
+                iterativeCount = 0;
+                return currentTarget.transform.position;
+            }
+            if (diff1 < accuracy)
+            {
+                gunRotation = Quaternion.Inverse(gunRotation);
+                Y = Mathf.Tan(TT.x) * X;
+                newHitPoint = gunRotation * new Vector3(0, Y, X) + gunPosition;
+                iterativeCount = 0;
+                return newHitPoint;
+            }
+            return calculateNoneLinearTrajectory(gunVelocity, AirDrag, gunPosition, aircraftVelocity, aircraftPosition, aircraftDirection, newHitPoint, G, accuracy, diff1);
+        }
+        Vector3 calculateLinearTrajectory(float gunVelocity, Vector3 gunPosition, float aircraftVelocity, Vector3 aircraftPosition, Vector3 aircraftDirection)
+        {
+
+            Vector3 hitPoint = Vector3.zero;
+
+            if (aircraftVelocity != 0)
+            {
+                Vector3 D = gunPosition - aircraftPosition;
+                float THETA = Vector3.Angle(D, aircraftDirection) * Mathf.Deg2Rad;
+                float DD = D.magnitude;
+
+                float A = 1 - Mathf.Pow((gunVelocity / aircraftVelocity), 2);
+                float B = -(2 * DD * Mathf.Cos(THETA));
+                float C = DD * DD;
+                float DELTA = B * B - 4 * A * C;
+
+                if (DELTA < 0)
+                {
+                    return Vector3.zero;
+                }
+
+                float F1 = (-B + Mathf.Sqrt(B * B - 4 * A * C)) / (2 * A);
+                float F2 = (-B - Mathf.Sqrt(B * B - 4 * A * C)) / (2 * A);
+
+                if (F1 < F2)
+                    F1 = F2;
+                hitPoint = aircraftPosition + aircraftDirection * F1;
+            }
+            else
+            {
+                hitPoint = aircraftPosition;
+            }
+            return hitPoint;
+        }
+        Vector3 getCorrTorque(Vector3 from, Vector3 to, Rigidbody rb, float SpeedPerSecond)
+        {
+            try
+            {
+                Vector3 x = Vector3.Cross(from.normalized, to.normalized);                // axis of rotation
+                float theta = Mathf.Asin(x.magnitude);                                    // angle between from & to
+                Vector3 w = x.normalized * theta / SpeedPerSecond;                        // scaled angular acceleration
+                Vector3 w2 = w - rb.angularVelocity;                                      // need to slow down at a point
+                Quaternion q = rb.rotation * rb.inertiaTensorRotation;                    // transform inertia tensor
+                return q * Vector3.Scale(rb.inertiaTensor, (Quaternion.Inverse(q) * w2)); // calculate final torque
+            }
+            catch { return Vector3.zero; }
+        }
+
         protected MKey Key1;
         protected MKey Key2;
         protected MSlider 炮力;
@@ -369,15 +490,17 @@ namespace Blocks
                 IHaveConnectedWithCannons = false;
                 foreach (Joint Jo in this.GetComponent<GenericBlock>().jointsToMe)
                 {
-                    CanonBlock cb = Jo.GetComponentInParent<CanonBlock>();
-                    if (cb)
+                    
+                    if (Jo.GetComponentInParent<CanonBlock>())
                     {
+                        CanonBlock cb = Jo.GetComponentInParent<CanonBlock>();
                         cb.knockbackSpeed = 4250;
                         IHaveConnectedWithCannons = true;
                     }
                     但是有两门炮 = 只有一门炮也是没有问题的 == null;
                     if (jointsToMe.Count == 1)
                     {
+                        CanonBlock cb = Jo.GetComponentInParent<CanonBlock>();
                         只有一门炮也是没有问题的 = cb.transform;
                     }
                 }
@@ -390,17 +513,33 @@ namespace Blocks
             if (HasBurnedOut()) return;
             if (currentTarget)
                 if (currentTarget.GetComponentInParent<MachineTrackerMyId>())
-                    if (currentTarget.GetComponentInParent<MachineTrackerMyId>().gameObject.name.Contains("IsCloaked"))
+                {
+                    if (currentTarget.GetComponentInParent<MachineTrackerMyId>().gameObject.name.Contains("IsCloaked") || this.name.Contains(("IsCloaked")))
                         currentTarget = null;
+                }
+                else if (currentTarget.gameObject.name == "FieldDetector")
+                {
+                    foreach (Transform block in Machine.Active().SimulationMachine)
+                    {
+                        if (block.name.Contains("Improved") && (block.position - currentTarget.transform.position).sqrMagnitude < 1)
+                            currentTarget = block.gameObject;
+                    }
+                }
+
             if (!IsOverLoaded)
             {
-                IsOverLoaded = ((前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 2500 && 模式.Value == 0 && !IHaveConnectedWithCannons) 
+                IsOverLoaded = ((前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 200f && 模式.Value == 0 && !IHaveConnectedWithCannons) 
                     || 
-                    (IHaveConnectedWithCannons && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 176400 && 模式.Value == 0)
+                    (IHaveConnectedWithCannons && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 12500f && 模式.Value == 0)
                     || 
-                    (模式.Value == 1 && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 640000)
+                    (模式.Value == 1 && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 8500f)
                     ;
             }
+            else
+            {
+                Debug.Log("Overloaded! Tracking Computer CPU Damaged!");
+            }
+            前一帧速度 = this.rigidbody.velocity;
 
             if (模式.Value == 0 && !IsOverLoaded)
             {
@@ -464,8 +603,8 @@ namespace Blocks
                 Vector3 calculated = (getCorrTorque(this.transform.forward, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size) * Mathf.Rad2Deg).normalized * RotatingSpeed;
                 this.GetComponent<Rigidbody>().angularVelocity = calculated;
                 float mag = (this.transform.forward.normalized - LocalTargetDirection.normalized).magnitude;
-                Debug.Log(Vector3.Angle(transform.forward, LocalTargetDirection - this.transform.position * 1));
-                if (Vector3.Angle(transform.forward, LocalTargetDirection - this.transform.position * 1) > 精度.Value)
+                //Debug.Log(Vector3.Angle(transform.forward, LocalTargetDirection - this.transform.position * 1));
+                if (Vector3.Angle(transform.forward, LocalTargetDirection - this.transform.position * 1) > 精度.Value * 0.01f)
                 {
                     //this.GetComponent<Rigidbody>().freezeRotation = false;
                     Audio.volume = mag * 0.2f * Math.Max((10 / (Vector3.Distance(this.transform.position, GameObject.Find("Main Camera").transform.position))), 1);
@@ -534,11 +673,11 @@ namespace Blocks
                         //LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
                         float mag = (LocalTargetDirection.normalized - transform.forward.normalized).magnitude;
                         Vector3 TargetDirection = (getCorrTorque(this.transform.forward, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size * Mathf.Rad2Deg).normalized);
-                        if (TargetDirection.magnitude > 5)
+                        if (Vector3.Angle(transform.forward, LocalTargetDirection - this.transform.position * 1) < 105)
                         {
                             this.GetComponent<Rigidbody>().angularVelocity = (TargetDirection * RotatingSpeed*2);
                         }
-                        else { Debug.Log("找不到目标!" + mag * Mathf.Sign(Vector3.Dot(LocalTargetDirection, this.transform.forward))); }
+                        else { Debug.Log("找不到目标!"); }
                         前一帧速度 = currentTarget.GetComponent<Rigidbody>().velocity;
                     }
                 }
@@ -559,126 +698,7 @@ namespace Blocks
                 }
             }
         }
-        Vector2 formulaProjectile(float X, float Y, float V, float G)
-        {
-            if (G == 0)
-            {
-                float THETA = Mathf.Atan(Y / X);
-                float T = (Y / Mathf.Sin(THETA)) / V;
-                return (new Vector2(THETA, T));
-            }
-            else
-            {
-                float DELTA = Mathf.Pow(V, 4) - G * (G * X * X - 2 * Y * V * V);
-                if (DELTA < 0)
-                {
-                    return Vector2.zero;
-                }
-                float THETA1 = Mathf.Atan((-(V * V) + Mathf.Sqrt(DELTA)) / (G * X));
-                float THETA2 = Mathf.Atan((-(V * V) - Mathf.Sqrt(DELTA)) / (G * X));
-                if (THETA1 > THETA2)
-                    THETA1 = THETA2;
-                float T = X / (V * Mathf.Cos(THETA1));
-                return new Vector2(THETA1, T);
-            }
-        }
-
-        Vector3 formulaTarget(float VT, Vector3 PT, Vector3 DT, float TT)
-        {
-            Vector3 newPosition = PT + DT * (VT * TT);
-            return newPosition;
-        }
-
-        Vector3 calculateNoneLinearTrajectory(float gunVelocity, float AirDrag, Vector3 gunPosition, float aircraftVelocity, Vector3 aircraftPosition, Vector3 aircraftDirection, Vector3 hitPoint, float G, float accuracy, float diff)
-        {
-            iterativeCount++;
-            if (iterativeCount > 512) { iterativeCount = 0; return hitPoint; }
-            if (hitPoint == Vector3.zero || gunVelocity < 1)
-            {
-                return currentTarget.transform.position;
-            }
-            Vector3 gunDirection = new Vector3(hitPoint.x, gunPosition.y, hitPoint.z) - gunPosition;
-            Quaternion gunRotation = Quaternion.FromToRotation(gunDirection, Vector3.forward);
-            Vector3 localHitPoint = gunRotation * (hitPoint - gunPosition);
-            float currentCalculatedDistance = (hitPoint - gunPosition).magnitude;
-
-            float V = (float)Math.Sqrt(gunVelocity * gunVelocity - 2 * AirDrag * currentCalculatedDistance);
-            float X = localHitPoint.z;//z为前方
-            float Y = localHitPoint.y;
-            Vector2 TT = formulaProjectile(X, Y, V, G);
-            if (TT == Vector2.zero)
-            {
-                iterativeCount = 0;
-                return currentTarget.transform.position;
-            }
-            float VT = aircraftVelocity;
-            Vector3 PT = aircraftPosition;
-            Vector3 DT = aircraftDirection;
-            float T = TT.y;
-            Vector3 newHitPoint = formulaTarget(VT, PT, DT, T);
-            float diff1 = (newHitPoint - hitPoint).magnitude;
-            if (diff1 > diff)
-            {
-                iterativeCount = 0;
-                return currentTarget.transform.position;
-            }
-            if (diff1 < accuracy)
-            {
-                gunRotation = Quaternion.Inverse(gunRotation);
-                Y = Mathf.Tan(TT.x) * X;
-                newHitPoint = gunRotation * new Vector3(0, Y, X) + gunPosition;
-                iterativeCount = 0;
-                return newHitPoint;
-            }
-            return calculateNoneLinearTrajectory(gunVelocity, AirDrag, gunPosition, aircraftVelocity, aircraftPosition, aircraftDirection, newHitPoint, G, accuracy, diff1);
-        }
-        Vector3 calculateLinearTrajectory(float gunVelocity, Vector3 gunPosition, float aircraftVelocity, Vector3 aircraftPosition, Vector3 aircraftDirection)
-        {
-
-            Vector3 hitPoint = Vector3.zero;
-
-            if (aircraftVelocity != 0)
-            {
-                Vector3 D = gunPosition - aircraftPosition;
-                float THETA = Vector3.Angle(D, aircraftDirection) * Mathf.Deg2Rad;
-                float DD = D.magnitude;
-
-                float A = 1 - Mathf.Pow((gunVelocity / aircraftVelocity), 2);
-                float B = -(2 * DD * Mathf.Cos(THETA));
-                float C = DD * DD;
-                float DELTA = B * B - 4 * A * C;
-
-                if (DELTA < 0)
-                {
-                    return Vector3.zero;
-                }
-
-                float F1 = (-B + Mathf.Sqrt(B * B - 4 * A * C)) / (2 * A);
-                float F2 = (-B - Mathf.Sqrt(B * B - 4 * A * C)) / (2 * A);
-
-                if (F1 < F2)
-                    F1 = F2;
-                hitPoint = aircraftPosition + aircraftDirection * F1;
-            }
-            else
-            {
-                hitPoint = aircraftPosition;
-            }
-            return hitPoint;
-        }
-        Vector3 getCorrTorque(Vector3 from, Vector3 to, Rigidbody rb, float SpeedPerSecond)
-        {
-            try
-            {
-                Vector3 x = Vector3.Cross(from.normalized, to.normalized);                // axis of rotation
-                float theta = Mathf.Asin(x.magnitude);                                    // angle between from & to
-                Vector3 w = x.normalized * theta / SpeedPerSecond;                        // scaled angular acceleration
-                Vector3 w2 = w - rb.angularVelocity;                                      // need to slow down at a point
-                Quaternion q = rb.rotation * rb.inertiaTensorRotation;                    // transform inertia tensor
-                return q * Vector3.Scale(rb.inertiaTensor, (Quaternion.Inverse(q) * w2)); // calculate final torque
-            }
-            catch { return Vector3.zero; }
-        }
+        
     }
     public class ModifiedTurret : BlockScript
     {
@@ -701,8 +721,12 @@ namespace Blocks
         private int iterativeCount = 0;
         public float 炮弹速度;
         private float size;
-        private float RotatingSpeed = 10f;
+        private float RotatingSpeed = 8f;
         public float 记录器 = 0;
+
+        public Vector3 前一帧速度 = Vector3.zero;
+        private bool IHaveConnectedWithCannons = false;
+        private bool IsOverLoaded = false;
 
         public override void SafeAwake()
         {
@@ -851,10 +875,12 @@ namespace Blocks
             }
             foreach (Joint Jo in this.GetComponent<GenericBlock>().jointsToMe)
             {
-                CanonBlock cb = Jo.GetComponentInParent<CanonBlock>();
-                if(cb)
+                IHaveConnectedWithCannons = false;
+                if(Jo.GetComponentInParent<CanonBlock>())
                 {
+                    CanonBlock cb = Jo.GetComponentInParent<CanonBlock>();
                     cb.knockbackSpeed = 500;
+                    IHaveConnectedWithCannons = true;
                 }
             }
         }
@@ -866,8 +892,19 @@ namespace Blocks
             float FireProg = this.GetComponentInChildren<FireController>().fireProgress;
             if (currentTarget)
                 if (currentTarget.GetComponentInParent<MachineTrackerMyId>())
-                    if (currentTarget.GetComponentInParent<MachineTrackerMyId>().gameObject.name.Contains("IsCloaked"))
-                    currentTarget = null;
+                {
+                    if (currentTarget.GetComponentInParent<MachineTrackerMyId>().gameObject.name.Contains("IsCloaked") || this.name.Contains(("IsCloaked")))
+                        currentTarget = null;
+                }
+            else if(currentTarget.gameObject.name == "FieldDetector")
+                {
+                    foreach (Transform block in Machine.Active().SimulationMachine)
+                    {
+                        if (block.name.Contains("Improved") && (block.position - currentTarget.transform.position).sqrMagnitude < 1)
+                            currentTarget = block.gameObject;
+                    }
+                }
+
             if (AddPiece.isSimulating && !HasBurnedOut())
             {
                 记录器 += (计算间隔.Value / 100) * (1 - FireProg);
@@ -880,6 +917,16 @@ namespace Blocks
                     MouseMode(FireProg);
                 }
             }
+
+            if (!IsOverLoaded)
+            {
+                IsOverLoaded = 
+                    ((前一帧速度 - this.GetComponent<Rigidbody>().velocity).sqrMagnitude >= 200f && 模式.Value == 0 && !IHaveConnectedWithCannons)
+                    ||
+                    (IHaveConnectedWithCannons && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 12500f && 模式.Value == 0)
+                    ;
+            }
+            前一帧速度 = this.GetComponent<Rigidbody>().velocity;
 
         }
         Vector2 formulaProjectile(float X, float Y, float V, float G)
@@ -1037,7 +1084,7 @@ namespace Blocks
                 //Debug.Log(LocalTargetDirection + "and" + this.transform.up + "and" + rooo);
                 //this.transform.rotation = Quaternion.LookRotation(rooo);
                 //LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
-                this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.right, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size) * 360);
+                this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.right, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size) * Mathf.Rad2Deg).normalized * RotatingSpeed;
                 float mag = (this.transform.right.normalized - LocalTargetDirection.normalized).magnitude;
                 if (mag > 0.01f)
                 {
@@ -1079,7 +1126,7 @@ namespace Blocks
                 //Debug.Log(LocalTargetDirection + "and" + this.transform.up + "and" + rooo);
                 //this.transform.rotation = Quaternion.LookRotation(rooo);
                 //LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
-                this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.right, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size) * 360);
+                this.GetComponent<Rigidbody>().angularVelocity = (getCorrTorque(this.transform.right, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size) * Mathf.Rad2Deg).normalized * RotatingSpeed;
                 float mag = (this.transform.right.normalized - LocalTargetDirection.normalized).magnitude;
                 if (mag > 0.01f)
                 {
