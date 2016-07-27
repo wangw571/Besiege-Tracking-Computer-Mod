@@ -9,7 +9,7 @@ namespace Blocks
 {
     public class TrackingComputerMod : BlockMod
     {
-        public override Version Version { get { return new Version("2.46"); } }
+        public override Version Version { get { return new Version("2.48"); } }
         public override string Name { get { return "Tracking_Computer_Mod"; } }
         public override string DisplayName { get { return "Tracking Computer Mod"; } }
         public override string BesiegeVersion { get { return "v0.3"; } }
@@ -52,7 +52,7 @@ namespace Blocks
             .Mass(2f)
 
             ///是否显示碰撞器（在公开你的模块的时候记得写false）
-            .ShowCollider(false)
+            .ShowCollider(true)
 
             ///碰撞器
             .CompoundCollider(new List<ColliderComposite> {
@@ -142,7 +142,7 @@ namespace Blocks
             .Mass(2f)
 
             ///是否显示碰撞器（在公开你的模块的时候记得写false）
-            .ShowCollider(false)
+            .ShowCollider(true)
 
             ///碰撞器
             .CompoundCollider(new List<ColliderComposite> {
@@ -335,6 +335,8 @@ namespace Blocks
         protected MSlider 计算间隔;
         protected MMenu 模式;
         protected MMenu MissileGuidanceMode;
+        protected MKey MissileGuidanceModeSwitchButton;
+        protected MSlider MissileHeightController;
         //protected MToggle 不聪明模式;
 
         private RaycastHit hitt;
@@ -390,6 +392,9 @@ namespace Blocks
 
             MissileGuidanceMode = AddMenu("MissileMode", 0, new List<string> { "Calculate \nTarget Speed", "Directly Follow", "From Top", "From Bottom"});
 
+            MissileGuidanceModeSwitchButton = AddKey("Switch Guide Mode", "GuideModeSwitch", KeyCode.RightControl);
+
+            MissileHeightController = AddSlider("Height above target", "Height", 100, 0, 1500);
 
             /*不聪明模式 = AddToggle("Disable Smart Attack",   //toggle信息
                                        "NoSA",       //名字
@@ -422,19 +427,25 @@ namespace Blocks
             计算间隔.DisplayInMapper = 模式.Value == 0 || 模式.Value == 1;
             精度.DisplayInMapper = 模式.Value == 0 || 模式.Value == 1;
             MissileGuidanceMode.DisplayInMapper = 模式.Value == 1;
+            MissileGuidanceModeSwitchButton.DisplayInMapper = 模式.Value == 1;
 
-            if (模式.Value == 1)
+            if(MissileGuidanceMode.Value == 2)
             {
-                this.GetComponentInChildren<MeshFilter>().mesh = resources["MissileModule.obj"].mesh;
-                this.GetComponentInChildren<BoxCollider>().size = new Vector3(0.7f, 0.7f, 1.3f);
-                this.GetComponentInChildren<BoxCollider>().center = new Vector3(0f, 0f, 0.8f);
+                MissileHeightController.DisplayInMapper = true;
+                MissileHeightController.DisplayName = "Height above target";
+            }
+            else if (MissileGuidanceMode.Value == 3)
+            {
+                MissileHeightController.DisplayInMapper = true;
+                MissileHeightController.DisplayName = "Height above ground";
             }
             else
             {
-                this.GetComponentInChildren<MeshFilter>().mesh = resources["turret.obj"].mesh;
-                this.GetComponentInChildren<BoxCollider>().size = new Vector3(1f, 1f, 1.2f);
-                this.GetComponentInChildren<BoxCollider>().center = new Vector3(0f, 0f, 0.6f);
+                MissileHeightController.DisplayInMapper = false;
             }
+            MissileGuidanceModeInt = MissileGuidanceMode.Value;
+            ModelReplacer();
+            MissileColorApplier();
         }
         protected override void OnSimulateStart()
         {
@@ -452,18 +463,10 @@ namespace Blocks
                 默认朝向 = this.transform.forward;
             }
             catch { 默认朝向 = Vector3.zero; }
-            if (模式.Value == 1)
-            {
-                this.GetComponentInChildren<MeshFilter>().mesh = resources["MissileModule.obj"].mesh;
-                this.GetComponentInChildren<BoxCollider>().size = new Vector3(0.7f, 0.7f, 1.3f);
-                this.GetComponentInChildren<BoxCollider>().center = new Vector3(0f, 0f, 0.8f);
-            }
-            else
-            {
-                this.GetComponentInChildren<MeshFilter>().mesh = resources["turret.obj"].mesh;
-                this.GetComponentInChildren<BoxCollider>().size = new Vector3(1f, 1f, 1.2f);
-                this.GetComponentInChildren<BoxCollider>().center = new Vector3(0f, 0f, 0.6f);
-            }
+
+            ModelReplacer();
+            MissileColorApplier();
+
             //this.GetComponent<Rigidbody>().angularDrag = 20;
             //this.GetComponent<Rigidbody>().maxAngularVelocity = 2f;
         }
@@ -485,6 +488,13 @@ namespace Blocks
             {
                 currentTarget = null;
             }
+            if(MissileGuidanceModeSwitchButton.IsPressed && currentTarget == null)
+            {
+                MissileGuidanceMode.Value++;
+                if(MissileGuidanceMode.Value > MissileGuidanceMode.Items.Count - 1) { MissileGuidanceMode.Value = 0; }
+                MissileGuidanceModeInt = MissileGuidanceMode.Value;
+            }
+            MissileColorApplier();
 
             if (HasBurnedOut())
             {
@@ -521,7 +531,6 @@ namespace Blocks
             }
             
         }
-
         protected override void OnSimulateFixedUpdate()
         {
             if (HasBurnedOut()) return;
@@ -542,12 +551,19 @@ namespace Blocks
 
             if (!IsOverLoaded)
             {
-                IsOverLoaded = ((前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 200f && 模式.Value == 0 && !IHaveConnectedWithCannons) 
+                bool aha;
+                    aha = ((前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 200f && 模式.Value == 0 && !IHaveConnectedWithCannons) 
                     || 
                     (IHaveConnectedWithCannons && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 12500f && 模式.Value == 0)
                     || 
                     (模式.Value == 1 && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 14500f)
                     ;
+                if(aha)
+                {
+                    OverLoadExplosion();
+                    this.GetComponent<FireTag>().Ignite();
+                    IsOverLoaded = true;
+                }
             }
             else
             {
@@ -665,10 +681,16 @@ namespace Blocks
                     if (MissileGuidanceModeInt == 2)
                     {
                         Vector2 HorizontalDistance = new Vector2(currentTarget.transform.position.x - this.transform.position.x, currentTarget.transform.position.z - this.transform.position.z);
-
-                        LocalTargetDirection = currentTarget.transform.position + new Vector3(HorizontalDistance.x / 12, currentTarget.transform.position.y + 100, HorizontalDistance.y / 12);
-                        //Debug.Log(HorizontalDistance);
-                        if (HorizontalDistance.sqrMagnitude < 100)
+                        if (this.transform.position.y > currentTarget.transform.position.y + MissileHeightController.Value)
+                        {
+                            LocalTargetDirection = currentTarget.transform.position + new Vector3(HorizontalDistance.x / (this.rigidbody.velocity.x + 0.0001f), currentTarget.transform.position.y + MissileHeightController.Value * 1.1f, HorizontalDistance.y / (this.rigidbody.velocity.z + 0.0001f));
+                        }
+                        else
+                        {
+                            LocalTargetDirection = this.transform.position + Vector3.up * (currentTarget.transform.position.y + MissileHeightController.Value * 1.1f);
+                        }
+                            //Debug.Log(HorizontalDistance);
+                        if (HorizontalDistance.sqrMagnitude < 100 * 炮弹速度)
                         {
                             MissileGuidanceModeInt = 0;
                         }
@@ -676,8 +698,23 @@ namespace Blocks
                     else if (MissileGuidanceModeInt == 3)
                     {
                         Vector2 HorizontalDistance = new Vector2(currentTarget.transform.position.x - this.transform.position.x, currentTarget.transform.position.z - this.transform.position.z);
+                        if(this.transform.position.y < MissileHeightController.Value)
+                        {
+                            LocalTargetDirection = new Vector3(transform.position.x,MissileHeightController.Value * 1.5f,transform.position.z);
+                        }
+                        else if(this.transform.position.y > MissileHeightController.Value * 2)
+                        {
+                            LocalTargetDirection = new Vector3(transform.position.x + HorizontalDistance.normalized.x * 1.5f, MissileHeightController.Value, transform.position.z + +HorizontalDistance.normalized.y);
+                        }
+                        else
+                        {
+                            LocalTargetDirection = currentTarget.transform.position + new Vector3(HorizontalDistance.x / (this.rigidbody.velocity.x + 0.0001f), MissileHeightController.Value * 1f, HorizontalDistance.y / (this.rigidbody.velocity.z + 0.0001f));
+                        }
 
-                        LocalTargetDirection = currentTarget.transform.position;
+                        if (HorizontalDistance.sqrMagnitude < 100 * 炮弹速度)
+                        {
+                            MissileGuidanceModeInt = 0;
+                        }
                     }
                     else
                     {
@@ -753,7 +790,60 @@ namespace Blocks
             前一帧速度 = this.GetComponent<Rigidbody>().velocity;
             return LocalTargetDirection;
         }
-        
+
+        void MissileColorApplier()
+        {
+            Transform Vis = transform.Find("Vis/Vis");
+            if (MissileGuidanceModeInt == 0)
+            {
+                Vis.GetComponent<MeshRenderer>().material.color = Color.white;
+            }
+            else if (MissileGuidanceModeInt == 1)
+            {
+                Vis.GetComponent<MeshRenderer>().material.color = Color.black;
+            }
+            else if (MissileGuidanceModeInt == 2)
+            {
+                Vis.GetComponent<MeshRenderer>().material.color = Color.Lerp(Color.red,Color.white,0.5f);
+            }
+            else if (MissileGuidanceModeInt == 3)
+            {
+                Vis.GetComponent<MeshRenderer>().material.color = Color.yellow;
+            }
+        }
+        void ModelReplacer()
+        {
+            Transform Vis = transform.Find("Vis/Vis");
+            if (模式.Value == 1)
+            {
+                Vis.GetComponentInChildren<MeshFilter>().mesh = resources["MissileModule.obj"].mesh;
+                Vis.GetComponent<MeshRenderer>().material = new Material(Shader.Find("Diffuse"));
+                MissileColorApplier();
+                this.GetComponentInChildren<BoxCollider>().size = new Vector3(0.7f, 0.7f, 1.3f);
+                this.GetComponentInChildren<BoxCollider>().center = new Vector3(0f, 0f, 0.8f);
+            }
+            else
+            {
+                Vis.GetComponentInChildren<MeshFilter>().mesh = resources["turret.obj"].mesh;
+                Vis.GetComponent<MeshRenderer>().material = new Material(Shader.Find("Diffuse"));
+                MissileColorApplier();
+                this.GetComponentInChildren<BoxCollider>().size = new Vector3(1f, 1f, 1.2f);
+                this.GetComponentInChildren<BoxCollider>().center = new Vector3(0f, 0f, 0.6f);
+            }
+        }
+        void OverLoadExplosion()
+        {
+            GameObject explo = (GameObject)GameObject.Instantiate(PrefabMaster.BlockPrefabs[59].gameObject, this.transform.position, this.transform.rotation);
+            explo.transform.localScale = Vector3.one * 0.01f;
+            TimedRocket ac = explo.GetComponent<TimedRocket>();
+            ac.SetSlip(Color.white);
+            ac.radius = 0.00001f;
+            ac.power = 0.00001f;
+            ac.randomDelay = 0.000001f;
+            ac.upPower = 0;
+            ac.StartCoroutine(ac.Explode(0.01f));
+            explo.AddComponent<TimedSelfDestruct>();
+        }
     }
     public class ModifiedTurret : BlockScript
     {
@@ -991,6 +1081,15 @@ namespace Blocks
                     ||
                     (IHaveConnectedWithCannons && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 12500f && 模式.Value == 0)
                     ;
+                if(IsOverLoaded)
+                {
+                    OverLoadExplosion();
+                    this.GetComponent<FireTag>().Ignite();
+                }
+            }
+            else
+            {
+                Debug.Log("Overloaded!");
             }
             前一帧速度 = this.GetComponent<Rigidbody>().velocity;
 
@@ -1227,8 +1326,37 @@ namespace Blocks
                 }
             }
         }
+        void OverLoadExplosion()
+        {
+            GameObject explo = (GameObject)GameObject.Instantiate(PrefabMaster.BlockPrefabs[59].gameObject, this.transform.position, this.transform.rotation);
+            explo.transform.localScale = Vector3.one * 0.01f;
+            TimedRocket ac = explo.GetComponent<TimedRocket>();
+            ac.SetSlip(Color.white);
+            ac.radius = 0.00001f;
+            ac.power = 0.00001f;
+            ac.randomDelay = 0.000001f;
+            ac.upPower = 0;
+            ac.StartCoroutine(ac.Explode(0.01f));
+            explo.AddComponent<TimedSelfDestruct>();
+        }
     }
     //Physics stuff
+    public class TimedSelfDestruct : MonoBehaviour
+    {
+        float timer = 0;
+        void FixedUpdate()
+        {
+            ++timer;
+            if (timer > 260)
+            {
+                Destroy(this.gameObject);
+            }
+            if (this.GetComponent<TimedRocket>())
+            {
+                Destroy(this.GetComponent<TimedRocket>());
+            }
+        }
+    }
 }
 
 
