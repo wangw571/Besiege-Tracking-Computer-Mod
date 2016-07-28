@@ -9,7 +9,7 @@ namespace Blocks
 {
     public class TrackingComputerMod : BlockMod
     {
-        public override Version Version { get { return new Version("2.485"); } }
+        public override Version Version { get { return new Version("2.49"); } }
         public override string Name { get { return "Tracking_Computer_Mod"; } }
         public override string DisplayName { get { return "Tracking Computer Mod"; } }
         public override string BesiegeVersion { get { return "v0.3"; } }
@@ -450,14 +450,16 @@ namespace Blocks
         protected override void OnSimulateStart()
         {
             currentTarget = null;
-            炮弹速度 = 炮力.Value * 55;
+            炮弹速度 = 炮力.Value * 58;
             MissileGuidanceModeInt = MissileGuidanceMode.Value;
             Audio = this.gameObject.AddComponent<AudioSource>();
             Audio.clip = resources["炮台旋转音效.ogg"].audioClip;
             Audio.loop = false;
             Audio.volume = 0.2f;
-            this.GetComponent<ConfigurableJoint>().breakForce = Mathf.Infinity;
-            this.GetComponent<ConfigurableJoint>().breakTorque = Mathf.Infinity;
+            ConfigurableJoint conf = this.GetComponent<ConfigurableJoint>();
+            conf.breakForce = Mathf.Infinity;
+            conf.breakTorque = Mathf.Infinity;
+            conf.angularZMotion = ConfigurableJointMotion.Locked;
             try
             {
                 默认朝向 = this.transform.forward;
@@ -861,6 +863,7 @@ namespace Blocks
         protected MToggle DisableHTracking;
         protected MToggle DisableVTracking;
         protected MSlider KnockBackBonusAdjuster;
+        protected MToggle LockConnectionWhenNoTarget;
 
         private RaycastHit hitt;
         private RaycastHit hitt2;
@@ -911,7 +914,7 @@ namespace Blocks
                                     0f,          //最小值
                                     60f);           //最大值
 
-            镜头哪里 = AddSlider("Distance From Camera", "Dist", 1500, 900000, 1);
+            镜头哪里 = AddSlider("Distance From Camera", "Dist", 1500, 1, 900000);
 
             是否使用 = AddToggle("Use First Target \nTo Lock Function", "USE", false);
             模式 = AddMenu("Menu", 0, new List<string> { "Lock Mode", "Mouse Mode" });
@@ -927,6 +930,7 @@ namespace Blocks
 
             KnockBackBonusAdjuster = AddSlider("Knockback/Overload Adjust", "ADJ", 95, 0, 95);
 
+            LockConnectionWhenNoTarget = AddToggle("Lock the connection\nwhen having no target", "LOCKConnection", false);
         }
 
         protected virtual IEnumerator UpdateMapper()
@@ -971,13 +975,15 @@ namespace Blocks
         protected override void OnSimulateStart()
         {
             currentTarget = null;
-            炮弹速度 = 炮力.Value * 55;
+            炮弹速度 = 炮力.Value * 58;
             Audio = this.gameObject.AddComponent<AudioSource>();
             Audio.clip = resources["炮台旋转音效.ogg"].audioClip;
             Audio.loop = false;
             Audio.volume = 0.2f;
-            this.GetComponent<ConfigurableJoint>().breakForce = Mathf.Infinity;
-            this.GetComponent<ConfigurableJoint>().breakTorque = Mathf.Infinity;
+            ConfigurableJoint conf = this.GetComponent<ConfigurableJoint>();
+            conf.breakForce = Mathf.Infinity;
+            conf.breakTorque = Mathf.Infinity;
+            conf.angularZMotion = ConfigurableJointMotion.Locked;
             if (是否使用.IsActive)
             {
                 GameObject furthestTarget = null;
@@ -1002,6 +1008,31 @@ namespace Blocks
         }
         protected override void OnSimulateUpdate()
         {
+            /*if (Input.GetKey("1"))
+            {
+                this.GetComponent<ConfigurableJoint>().angularXMotion = ConfigurableJointMotion.Locked;
+            }
+            else
+            {
+                this.GetComponent<ConfigurableJoint>().angularXMotion = ConfigurableJointMotion.Free;
+            }
+            if (Input.GetKey("2"))
+            {
+                this.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
+            }
+            else
+            {
+                this.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
+            }
+            if (Input.GetKey("3"))
+            {
+                this.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Locked;
+            }
+            else
+            {
+                this.GetComponent<ConfigurableJoint>().angularZMotion = ConfigurableJointMotion.Free;
+            }*/
+
             //Trail.GetComponent<TrailRenderer>().material.color = Color.white;
             if (Key1.IsPressed && !HasBurnedOut() && 模式.Value == 0)
             {
@@ -1058,12 +1089,13 @@ namespace Blocks
             this.GetComponent<Rigidbody>().mass = 2f * size;
             float FireProg = this.GetComponentInChildren<FireController>().fireProgress;
             if (currentTarget)
+            {
                 if (currentTarget.GetComponentInParent<MachineTrackerMyId>())
                 {
                     if (currentTarget.GetComponentInParent<MachineTrackerMyId>().gameObject.name.Contains("IsCloaked") || this.name.Contains(("IsCloaked")))
                         currentTarget = null;
                 }
-            else if(currentTarget.gameObject.name == "FieldDetector")
+                else if (currentTarget.gameObject.name == "FieldDetector")
                 {
                     foreach (Transform block in Machine.Active().SimulationMachine)
                     {
@@ -1071,6 +1103,18 @@ namespace Blocks
                             currentTarget = block.gameObject;
                     }
                 }
+
+                if (LockConnectionWhenNoTarget.IsActive)
+                {
+                    this.GetComponent<ConfigurableJoint>().angularXMotion = ConfigurableJointMotion.Free;
+                    this.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Free;
+                }
+            }
+            else if(LockConnectionWhenNoTarget.IsActive)
+            {
+                this.GetComponent<ConfigurableJoint>().angularXMotion = ConfigurableJointMotion.Locked;
+                this.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
+            }
 
             if (AddPiece.isSimulating && !HasBurnedOut())
             {
