@@ -9,7 +9,7 @@ namespace Blocks
 {
     public class TrackingComputerMod : BlockMod
     {
-        public override Version Version { get { return new Version("2.48"); } }
+        public override Version Version { get { return new Version("2.485"); } }
         public override string Name { get { return "Tracking_Computer_Mod"; } }
         public override string DisplayName { get { return "Tracking Computer Mod"; } }
         public override string BesiegeVersion { get { return "v0.3"; } }
@@ -749,7 +749,7 @@ namespace Blocks
                     this.transform.LookAt(currentTarget.transform.position);
                     try
                     {
-                        Destroy(this.GetComponent<Rigidbody>());
+                        this.GetComponent<Rigidbody>().mass = 0.00001f;
                     }
                     catch { }
                 }
@@ -858,6 +858,9 @@ namespace Blocks
         protected MToggle FireOnMouseClick;
         protected MMenu 模式;
         protected MToggle 不聪明模式;
+        protected MToggle DisableHTracking;
+        protected MToggle DisableVTracking;
+        protected MSlider KnockBackBonusAdjuster;
 
         private RaycastHit hitt;
         private RaycastHit hitt2;
@@ -918,6 +921,12 @@ namespace Blocks
                                        false);             //默认状态
 
             FireOnMouseClick = AddToggle("Fire On Click", "FOC", true);
+
+            //DisableHTracking = AddToggle("Disable Horizontal Tracking", "DHT", false);
+            DisableVTracking = AddToggle("Disable Vertical Tracking", "DVT", false);
+
+            KnockBackBonusAdjuster = AddSlider("Knockback/Overload Adjust", "ADJ", 95, 0, 95);
+
         }
 
         protected virtual IEnumerator UpdateMapper()
@@ -946,6 +955,8 @@ namespace Blocks
 
             Key1.DisplayInMapper = 模式.Value != 1;
             Key2.DisplayInMapper = 模式.Value != 1;
+
+            KnockBackBonusAdjuster.Value = Mathf.Clamp(KnockBackBonusAdjuster.Value, 0, 95);
 
             模块id.DisplayInMapper = 是否使用.IsActive && 模式.Value == 0;
 
@@ -1031,7 +1042,7 @@ namespace Blocks
                     CanonBlock cb = Jo.GetComponentInParent<CanonBlock>();
                     if (!IsOverLoaded)
                     {
-                        cb.knockbackSpeed = 500;
+                        cb.knockbackSpeed = 8000 * ((100 - KnockBackBonusAdjuster.Value) / 100);
                         cb.randomDelay = 0.000001f;
                     }
                     else { cb.knockbackSpeed = 8000; }
@@ -1079,7 +1090,7 @@ namespace Blocks
                 IsOverLoaded = 
                     ((前一帧速度 - this.GetComponent<Rigidbody>().velocity).sqrMagnitude >= 200f && 模式.Value == 0 && !IHaveConnectedWithCannons)
                     ||
-                    (IHaveConnectedWithCannons && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 12500f && 模式.Value == 0)
+                    (IHaveConnectedWithCannons && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 12500f * (Mathf.Log(97 - KnockBackBonusAdjuster.Value,2)) && 模式.Value == 0)
                     ;
                 if(IsOverLoaded)
                 {
@@ -1249,7 +1260,14 @@ namespace Blocks
                 //Debug.Log(LocalTargetDirection + "and" + this.transform.up + "and" + rooo);
                 //this.transform.rotation = Quaternion.LookRotation(rooo);
                 //LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
-
+                /*if(DisableHTracking.IsActive)
+                {
+                    LocalTargetDirection = new Vector3(this.transform.right.x, LocalTargetDirection.y, this.transform.right.z);
+                }*/
+                if(DisableVTracking.IsActive)
+                {
+                    LocalTargetDirection = new Vector3(LocalTargetDirection.x, this.transform.right.y, LocalTargetDirection.z);
+                }
                 float Difference = Vector3.Angle(transform.forward, LocalTargetDirection - this.transform.position * 1);
                 if (Difference > 精度.Value)
                 {
@@ -1301,7 +1319,14 @@ namespace Blocks
                 //Debug.Log(LocalTargetDirection + "and" + this.transform.up + "and" + rooo);
                 //this.transform.rotation = Quaternion.LookRotation(rooo);
                 //LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
-
+                /*if (DisableHTracking.IsActive)
+                {
+                    LocalTargetDirection = new Vector3(this.transform.right.x, LocalTargetDirection.y, this.transform.right.z);
+                }*/
+                if (DisableVTracking.IsActive)
+                {
+                    LocalTargetDirection = new Vector3(LocalTargetDirection.x, this.transform.right.y, LocalTargetDirection.z);
+                }
                 float Difference = Vector3.Angle(transform.forward, LocalTargetDirection - this.transform.position * 1);
                 if (Difference > 精度.Value)
                 {
