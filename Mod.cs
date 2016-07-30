@@ -9,7 +9,7 @@ namespace Blocks
 {
     public class TrackingComputerMod : BlockMod
     {
-        public override Version Version { get { return new Version("2.49"); } }
+        public override Version Version { get { return new Version("2.5"); } }
         public override string Name { get { return "Tracking_Computer_Mod"; } }
         public override string DisplayName { get { return "Tracking Computer Mod"; } }
         public override string BesiegeVersion { get { return "v0.3"; } }
@@ -52,7 +52,7 @@ namespace Blocks
             .Mass(2f)
 
             ///是否显示碰撞器（在公开你的模块的时候记得写false）
-            .ShowCollider(true)
+            .ShowCollider(false)
 
             ///碰撞器
             .CompoundCollider(new List<ColliderComposite> {
@@ -110,7 +110,7 @@ namespace Blocks
             .ID(526)
 
             ///模块名称
-            .BlockName("Cormack\'s Modified Tracking Computer​")
+            .BlockName("Cormack\'s Modified Tracking Computer​"/*"科尔马克氏改良型索敌计算机"*/)
 
             ///模型信息
             .Obj(new List<Obj> { new Obj("turret.obj", //Obj
@@ -142,7 +142,7 @@ namespace Blocks
             .Mass(2f)
 
             ///是否显示碰撞器（在公开你的模块的时候记得写false）
-            .ShowCollider(true)
+            .ShowCollider(false)
 
             ///碰撞器
             .CompoundCollider(new List<ColliderComposite> {
@@ -357,48 +357,80 @@ namespace Blocks
         public bool 但是有两门炮 = false;
 
         public int MissileGuidanceModeInt;
+        //public float MaxAcceleration = 0;
 
 
 
         public override void SafeAwake()
         {
-            Key1 = AddKey("Lock On", //按键信息
+             Key1 = AddKey("Lock On", //按键信息
+                                  "Locked",           //名字
+                                  KeyCode.T);       //默认按键
+
+             Key2 = AddKey("Release Lock", //按键信息2
+                                  "RLocked",           //名字
+                                  KeyCode.Slash);       //默认按键
+             List<string> chaos = new List<String> { "Turret Tracking \nComputer", "Missile Guidance \nComputer", "Camera Tracking \nComputer" };
+             模式 = AddMenu("Mode", 0, chaos);
+
+             炮力 = AddSlider("Cannon Slider",       //滑条信息
+                                     "CanonPower",       //名字
+                                     1f,            //默认值
+                                     0f,          //最小值
+                                     2f);           //最大值
+
+             精度 = AddSlider("Precision",       //滑条信息
+                                     "Precision",       //名字
+                                     0.5f,            //默认值
+                                     0.01f,          //最小值
+                                     10f);           //最大值
+
+             计算间隔 = AddSlider("Calculation per second",       //滑条信息 
+                                     "CalculationPerSecond",       //名字
+                                     100f,            //默认值
+                                     1f,          //最小值
+                                     100f);           //最大值
+
+             MissileGuidanceMode = AddMenu("MissileMode", 0, new List<string> { "Calculate \nTarget Speed", "Directly Follow", "From Top", "From Bottom"});
+
+             MissileGuidanceModeSwitchButton = AddKey("Switch Guide Mode", "GuideModeSwitch", KeyCode.RightControl);
+
+             MissileHeightController = AddSlider("Height above target", "Height", 100, 0, 1500);
+
+            /*Key1 = AddKey("获取目标", //按键信息
                                  "Locked",           //名字
                                  KeyCode.T);       //默认按键
 
-            Key2 = AddKey("Release Lock", //按键信息2
+            Key2 = AddKey("解除锁定", //按键信息2
                                  "RLocked",           //名字
                                  KeyCode.Slash);       //默认按键
-            List<string> chaos = new List<String> { "Turret Tracking \nComputer", "Missile Guidance \nComputer", "Camera Tracking \nComputer" };
+            List<string> chaos = new List<String> { "炮塔索敌计算机", "导弹导引计算机", "相机跟踪计算机" };
             模式 = AddMenu("Mode", 0, chaos);
 
-            炮力 = AddSlider("Cannon Slider",       //滑条信息
+            炮力 = AddSlider("炮力",       //滑条信息
                                     "CanonPower",       //名字
                                     1f,            //默认值
                                     0f,          //最小值
                                     2f);           //最大值
 
-            精度 = AddSlider("Precision",       //滑条信息
+            精度 = AddSlider("精度",       //滑条信息
                                     "Precision",       //名字
                                     0.5f,            //默认值
                                     0.01f,          //最小值
                                     10f);           //最大值
 
-            计算间隔 = AddSlider("Calculation per second",       //滑条信息 
+            计算间隔 = AddSlider("每秒计算频率",       //滑条信息 
                                     "CalculationPerSecond",       //名字
                                     100f,            //默认值
                                     1f,          //最小值
                                     100f);           //最大值
 
-            MissileGuidanceMode = AddMenu("MissileMode", 0, new List<string> { "Calculate \nTarget Speed", "Directly Follow", "From Top", "From Bottom"});
+            MissileGuidanceMode = AddMenu("MissileMode", 0, new List<string> { "预测目标运动", "直接跟随", "攻顶", "攻底" });
 
-            MissileGuidanceModeSwitchButton = AddKey("Switch Guide Mode", "GuideModeSwitch", KeyCode.RightControl);
+            MissileGuidanceModeSwitchButton = AddKey("切换导引模式", "GuideModeSwitch", KeyCode.RightControl);
 
-            MissileHeightController = AddSlider("Height above target", "Height", 100, 0, 1500);
-
-            /*不聪明模式 = AddToggle("Disable Smart Attack",   //toggle信息
-                                       "NoSA",       //名字
-                                       false);             //默认状态*/
+            MissileHeightController = AddSlider("目标上方高度", "Height", 100, 0, 1500);
+            */
         }
 
         protected virtual IEnumerator UpdateMapper()
@@ -432,12 +464,12 @@ namespace Blocks
             if(MissileGuidanceMode.Value == 2)
             {
                 MissileHeightController.DisplayInMapper = true;
-                MissileHeightController.DisplayName = "Height above target";
+                MissileHeightController.DisplayName = "目标上方高度";
             }
             else if (MissileGuidanceMode.Value == 3)
             {
                 MissileHeightController.DisplayInMapper = true;
-                MissileHeightController.DisplayName = "Height above ground";
+                MissileHeightController.DisplayName = "高度";
             }
             else
             {
@@ -512,7 +544,6 @@ namespace Blocks
                 IHaveConnectedWithCannons = false;
                 foreach (Joint Jo in this.GetComponent<GenericBlock>().jointsToMe)
                 {
-                    
                     if (Jo.GetComponentInParent<CanonBlock>())
                     {
                         CanonBlock cb = Jo.GetComponentInParent<CanonBlock>();
@@ -522,13 +553,13 @@ namespace Blocks
                         } 
                         else { cb.knockbackSpeed = 8000; }
                         IHaveConnectedWithCannons = true;
+                        if (jointsToMe.Count == 1)
+                        {
+                            只有一门炮也是没有问题的 = cb.transform;
+                        }
                     }
                     但是有两门炮 = 只有一门炮也是没有问题的 == null;
-                    if (jointsToMe.Count == 1)
-                    {
-                        CanonBlock cb = Jo.GetComponentInParent<CanonBlock>();
-                        只有一门炮也是没有问题的 = cb.transform;
-                    }
+                    
                 }
             }
             
@@ -554,11 +585,11 @@ namespace Blocks
             if (!IsOverLoaded)
             {
                 bool aha;
-                    aha = ((前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 200f && 模式.Value == 0 && !IHaveConnectedWithCannons) 
+                    aha = ((前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 25f && 模式.Value == 0 && !IHaveConnectedWithCannons) 
                     || 
                     (IHaveConnectedWithCannons && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 12500f && 模式.Value == 0)
                     || 
-                    (模式.Value == 1 && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 14500f)
+                    (模式.Value == 1 && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 200f)
                     ;
                 if(aha)
                 {
@@ -566,6 +597,11 @@ namespace Blocks
                     this.GetComponent<FireTag>().Ignite();
                     IsOverLoaded = true;
                 }
+                /*else
+                {
+                    MaxAcceleration = Math.Max(MaxAcceleration, (前一帧速度 - this.rigidbody.velocity).sqrMagnitude);
+                    Debug.Log(MaxAcceleration);
+                }*/
             }
             else
             {
@@ -735,7 +771,7 @@ namespace Blocks
                     Vector3 TargetDirection = (getCorrTorque(this.transform.forward, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size * Mathf.Rad2Deg).normalized);
                     if (Vector3.Angle(transform.forward, LocalTargetDirection - this.transform.position * 1) < 105 || MissileGuidanceMode.Value != 0 || MissileGuidanceMode.Value != 1)
                     {
-                        this.GetComponent<Rigidbody>().angularVelocity = (TargetDirection * RotatingSpeed * 2);
+                        this.GetComponent<Rigidbody>().angularVelocity = (TargetDirection * RotatingSpeed * 4);
                     }
                     else { Debug.Log("Target Lost!"); }
                 }
@@ -931,6 +967,56 @@ namespace Blocks
             KnockBackBonusAdjuster = AddSlider("Knockback/Overload Adjust", "ADJ", 95, 0, 95);
 
             LockConnectionWhenNoTarget = AddToggle("Lock the connection\nwhen having no target", "LOCKConnection", false);
+
+            /*Key1 = AddKey("获取目标", //按键信息
+                                 "Locked",           //名字
+                                 KeyCode.T);       //默认按键
+
+            Key2 = AddKey("解除锁定", //按键信息2
+                                 "RLocked",           //名字
+                                 KeyCode.Slash);       //默认按键
+
+            炮力 = AddSlider("炮力",       //滑条信息
+                                    "CanonPower",       //名字
+                                    1f,            //默认值
+                                    0f,          //最小值
+                                    2f);           //最大值
+
+            精度 = AddSlider("精度",       //滑条信息
+                                    "Precision",       //名字
+                                    0.5f,            //默认值
+                                    0.01f,          //最小值
+                                    10f);           //最大值
+
+            计算间隔 = AddSlider("每秒计算频率",       //滑条信息 
+                                    "CalculationPerSecond",       //名字
+                                    100f,            //默认值
+                                    1f,          //最小值
+                                    100f);           //最大值
+
+            模块id = AddSlider("开局就锁定的模块",       //滑条信息
+                                    "FirstTarget",       //名字
+                                    2f,            //默认值
+                                    0f,          //最小值
+                                    60f);           //最大值
+
+            镜头哪里 = AddSlider("距离相机的距离", "Dist", 1500, 1, 900000);
+
+            是否使用 = AddToggle("启用\n开局锁定模块\n功能", "USE", false);
+            模式 = AddMenu("Menu", 0, new List<string> { "锁定模式", "跟随鼠标模式" });
+
+            不聪明模式 = AddToggle("不计算弹道",   //toggle信息
+                                       "NoCL",       //名字
+                                       false);             //默认状态
+
+            FireOnMouseClick = AddToggle("在鼠标点击时开火", "FOC", true);
+
+            //DisableHTracking = AddToggle("Disable Horizontal Tracking", "DHT", false);
+            DisableVTracking = AddToggle("关闭垂直方向的计算", "DVT", false);
+
+            KnockBackBonusAdjuster = AddSlider("后坐力/过载 调整", "ADJ", 95, 0, 95);
+
+            LockConnectionWhenNoTarget = AddToggle("当没有目标时\n锁定连接点", "LOCKConnection", false);*/
         }
 
         protected virtual IEnumerator UpdateMapper()
@@ -1132,7 +1218,7 @@ namespace Blocks
             if (!IsOverLoaded)
             {
                 IsOverLoaded = 
-                    ((前一帧速度 - this.GetComponent<Rigidbody>().velocity).sqrMagnitude >= 200f && 模式.Value == 0 && !IHaveConnectedWithCannons)
+                    ((前一帧速度 - this.GetComponent<Rigidbody>().velocity).sqrMagnitude >= 25f && 模式.Value == 0 && !IHaveConnectedWithCannons)
                     ||
                     (IHaveConnectedWithCannons && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 12500f * (Mathf.Log(97 - KnockBackBonusAdjuster.Value,2)) && 模式.Value == 0)
                     ;
