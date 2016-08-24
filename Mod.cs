@@ -2,17 +2,16 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using spaar.ModLoader;
-using TheGuysYouDespise;
 using UnityEngine;
 
 namespace Blocks
 {
     public class TrackingComputerMod : BlockMod
     {
-        public override Version Version { get { return new Version("2.5"); } }
+        public override Version Version { get { return new Version("2.6"); } }
         public override string Name { get { return "Tracking_Computer_Mod"; } }
         public override string DisplayName { get { return "Tracking Computer Mod"; } }
-        public override string BesiegeVersion { get { return "v0.3"; } }
+        public override string BesiegeVersion { get { return "v0.32"; } }
         public override string Author { get { return "覅是"; } }
         protected Block TurretBlock = new Block()
             ///模块ID
@@ -235,7 +234,7 @@ namespace Blocks
             return newPosition;
         }
 
-        Vector3 calculateNoneLinearTrajectory(float gunVelocity, float AirDrag, Vector3 gunPosition, float aircraftVelocity, Vector3 aircraftPosition, Vector3 aircraftDirection, Vector3 hitPoint, float G, float accuracy, float diff)
+        Vector3 calculateNoneLinearTrajectory(float gunVelocity, float AirDrag, Vector3 gunPosition, float TargetVelocity, Vector3 TargetPosition, Vector3 TargetDirection, Vector3 hitPoint, float G, float accuracy, float diff)
         {
             iterativeCount++;
             if (iterativeCount > 512) { iterativeCount = 0; return hitPoint; }
@@ -248,7 +247,7 @@ namespace Blocks
             Vector3 localHitPoint = gunRotation * (hitPoint - gunPosition);
             float currentCalculatedDistance = (hitPoint - gunPosition).magnitude;
 
-            float b2M4ac = gunVelocity * gunVelocity - 2 * AirDrag * currentCalculatedDistance;
+            float b2M4ac = gunVelocity * gunVelocity - 4 * AirDrag * currentCalculatedDistance;
             if (b2M4ac < 0) { /*Debug.Log("Nan!!!" + (gunVelocity * gunVelocity - 2 * AirDrag * currentCalculatedDistance));*/ return currentTarget.transform.position;  }
             float V = (float)Math.Sqrt(b2M4ac);
             float X = localHitPoint.z;//z为前方
@@ -259,9 +258,9 @@ namespace Blocks
                 iterativeCount = 0;
                 return currentTarget.transform.position;
             }
-            float VT = aircraftVelocity;
-            Vector3 PT = aircraftPosition;
-            Vector3 DT = aircraftDirection;
+            float VT = TargetVelocity;
+            Vector3 PT = TargetPosition;
+            Vector3 DT = TargetDirection;
             float T = TT.y;
             Vector3 newHitPoint = formulaTarget(VT, PT, DT, T);
             float diff1 = (newHitPoint - hitPoint).magnitude;
@@ -278,20 +277,65 @@ namespace Blocks
                 iterativeCount = 0;
                 return newHitPoint;
             }
-            return calculateNoneLinearTrajectory(gunVelocity, AirDrag, gunPosition, aircraftVelocity, aircraftPosition, aircraftDirection, newHitPoint, G, accuracy, diff1);
+            return calculateNoneLinearTrajectory(gunVelocity, AirDrag, gunPosition, TargetVelocity, TargetPosition, TargetDirection, newHitPoint, G, accuracy, diff1);
         }
-        Vector3 calculateLinearTrajectory(float gunVelocity, Vector3 gunPosition, float aircraftVelocity, Vector3 aircraftPosition, Vector3 aircraftDirection)
+        Vector3 calculateNoneLinearTrajectoryWithAccelerationPrediction(float gunVelocity, float AirDrag, Vector3 gunPosition, float TargetVelocity, float targetAcceleration, Vector3 TargetPosition, Vector3 TargetDirection, Vector3 hitPoint, float G, float accuracy, float diff)
+        {
+            iterativeCount++;
+            if (iterativeCount > 512) { iterativeCount = 0; return TargetPosition; }
+            if (hitPoint == Vector3.zero || gunVelocity < 1)
+            {
+                return currentTarget.transform.position;
+            }
+            Vector3 gunDirection = new Vector3(hitPoint.x, gunPosition.y, hitPoint.z) - gunPosition;
+            Quaternion gunRotation = Quaternion.FromToRotation(gunDirection, Vector3.forward);
+            Vector3 localHitPoint = gunRotation * (hitPoint - gunPosition);
+            float currentCalculatedDistance = (hitPoint - gunPosition).magnitude;
+
+            float b2M4ac = gunVelocity * gunVelocity - 4 * AirDrag * currentCalculatedDistance;
+            if (b2M4ac < 0) { /*Debug.Log("Nan!!!" + (gunVelocity * gunVelocity - 2 * AirDrag * currentCalculatedDistance));*/ return currentTarget.transform.position; }
+            float V = (float)Math.Sqrt(b2M4ac);
+            float X = localHitPoint.z;//z为前方
+            float Y = localHitPoint.y;
+            Vector2 TT = formulaProjectile(X, Y, V, G);
+            if (TT == Vector2.zero)
+            {
+                iterativeCount = 0;
+                return currentTarget.transform.position;
+            }
+            float VT = TargetVelocity + targetAcceleration * currentCalculatedDistance;
+            Vector3 PT = TargetPosition;
+            Vector3 DT = TargetDirection;
+            float T = TT.y;
+            Vector3 newHitPoint = formulaTarget(VT, PT, DT, T);
+            float diff1 = (newHitPoint - hitPoint).magnitude;
+            if (diff1 > diff)
+            {
+                iterativeCount = 0;
+                return currentTarget.transform.position;
+            }
+            if (diff1 < accuracy)
+            {
+                gunRotation = Quaternion.Inverse(gunRotation);
+                Y = Mathf.Tan(TT.x) * X;
+                newHitPoint = gunRotation * new Vector3(0, Y, X) + gunPosition;
+                iterativeCount = 0;
+                return newHitPoint;
+            }
+            return calculateNoneLinearTrajectory(gunVelocity, AirDrag, gunPosition, TargetVelocity, TargetPosition, TargetDirection, newHitPoint, G, accuracy, diff1);
+        }
+        Vector3 calculateLinearTrajectory(float gunVelocity, Vector3 gunPosition, float TargetVelocity, Vector3 TargetPosition, Vector3 TargetDirection)
         {
 
             Vector3 hitPoint = Vector3.zero;
 
-            if (aircraftVelocity != 0)
+            if (TargetVelocity != 0)
             {
-                Vector3 D = gunPosition - aircraftPosition;
-                float THETA = Vector3.Angle(D, aircraftDirection) * Mathf.Deg2Rad;
+                Vector3 D = gunPosition - TargetPosition;
+                float THETA = Vector3.Angle(D, TargetDirection) * Mathf.Deg2Rad;
                 float DD = D.magnitude;
 
-                float A = 1 - Mathf.Pow((gunVelocity / aircraftVelocity), 2);
+                float A = 1 - Mathf.Pow((gunVelocity / TargetVelocity), 2);
                 float B = -(2 * DD * Mathf.Cos(THETA));
                 float C = DD * DD;
                 float DELTA = B * B - 4 * A * C;
@@ -306,14 +350,59 @@ namespace Blocks
 
                 if (F1 < F2)
                     F1 = F2;
-                hitPoint = aircraftPosition + aircraftDirection * F1;
+                hitPoint = TargetPosition + TargetDirection * F1;
             }
             else
             {
-                hitPoint = aircraftPosition;
+                hitPoint = TargetPosition;
             }
             return hitPoint;
         }
+        Vector3 calculateLinearTrajectoryWithAccelerationPrediction(float gunVelocity, Vector3 gunPosition, float TargetVelocity, float TargetAcceleration ,Vector3 TargetPosition, Vector3 TargetDirection,Vector3 PredictedPoint, float Precision)
+        {
+
+            Vector3 hitPoint = Vector3.zero;
+
+            iterativeCount++;
+            if (iterativeCount > 512) { iterativeCount = 0; return calculateLinearTrajectory(gunVelocity,gunPosition,TargetVelocity,targetPoint,TargetDirection); }
+
+            if (TargetVelocity != 0)
+            {
+                Vector3 D = gunPosition - TargetPosition;
+                float THETA = Vector3.Angle(D, TargetDirection) * Mathf.Deg2Rad;
+                float DD = D.magnitude;
+
+                float A = 1 - Mathf.Pow((gunVelocity / TargetVelocity + (TargetAcceleration * (PredictedPoint.magnitude / gunVelocity))), 2);
+                float B = -(2 * DD * Mathf.Cos(THETA));
+                float C = DD * DD;
+                float DELTA = B * B - 4 * A * C;
+
+                if (DELTA < 0)
+                {
+                    return Vector3.zero;
+                }
+
+                float F1 = (-B + Mathf.Sqrt(B * B - 4 * A * C)) / (2 * A);
+                float F2 = (-B - Mathf.Sqrt(B * B - 4 * A * C)) / (2 * A);
+
+                if (F1 < F2 && F1 >= 0)
+                    F1 = F2;
+                hitPoint = TargetPosition + TargetDirection * F1;
+            }
+            else
+            {
+                hitPoint = TargetPosition;
+            }
+            if((hitPoint - PredictedPoint).sqrMagnitude < Precision*Precision)
+            {
+                return hitPoint;
+            }
+            else
+            {
+                return calculateLinearTrajectoryWithAccelerationPrediction(gunVelocity, gunPosition, TargetVelocity, TargetAcceleration, TargetPosition, TargetDirection, hitPoint, Precision);
+            }
+        }
+
         Vector3 getCorrTorque(Vector3 from, Vector3 to, Rigidbody rb, float SpeedPerSecond)
         {
             try
@@ -337,6 +426,7 @@ namespace Blocks
         protected MMenu MissileGuidanceMode;
         protected MKey MissileGuidanceModeSwitchButton;
         protected MSlider MissileHeightController;
+        protected MSlider MissileTorqueSlider;
         //protected MToggle 不聪明模式;
 
         private RaycastHit hitt;
@@ -355,6 +445,7 @@ namespace Blocks
         public Vector3 默认朝向;
         public Transform 只有一门炮也是没有问题的;
         public bool 但是有两门炮 = false;
+        public float 目标前帧速度Mag = 0;
 
         public int MissileGuidanceModeInt;
         //public float MaxAcceleration = 0;
@@ -374,7 +465,7 @@ namespace Blocks
              模式 = AddMenu("Mode", 0, chaos);
 
              炮力 = AddSlider("Cannon Slider",       //滑条信息
-                                     "CanonPower",       //名字
+                                     "strength",       //名字
                                      1f,            //默认值
                                      0f,          //最小值
                                      2f);           //最大值
@@ -397,6 +488,8 @@ namespace Blocks
 
              MissileHeightController = AddSlider("Height above target", "Height", 100, 0, 1500);
 
+             MissileTorqueSlider = AddSlider("Torque Multiplier","Torque",4,0.1f,10f);
+
             /*Key1 = AddKey("获取目标", //按键信息
                                  "Locked",           //名字
                                  KeyCode.T);       //默认按键
@@ -408,7 +501,7 @@ namespace Blocks
             模式 = AddMenu("Mode", 0, chaos);
 
             炮力 = AddSlider("炮力",       //滑条信息
-                                    "CanonPower",       //名字
+                                    "strength",       //名字
                                     1f,            //默认值
                                     0f,          //最小值
                                     2f);           //最大值
@@ -430,6 +523,8 @@ namespace Blocks
             MissileGuidanceModeSwitchButton = AddKey("切换导引模式", "GuideModeSwitch", KeyCode.RightControl);
 
             MissileHeightController = AddSlider("目标上方高度", "Height", 100, 0, 1500);
+
+            MissileTorqueSlider = AddSlider("导弹扭矩乘子","Torque",4,0.1f,10f);
             */
         }
 
@@ -455,21 +550,26 @@ namespace Blocks
 
         protected override void BuildingUpdate()
         {
-            炮力.DisplayInMapper = 模式.Value == 0;
-            计算间隔.DisplayInMapper = 模式.Value == 0 || 模式.Value == 1;
-            精度.DisplayInMapper = 模式.Value == 0 || 模式.Value == 1;
-            MissileGuidanceMode.DisplayInMapper = 模式.Value == 1;
-            MissileGuidanceModeSwitchButton.DisplayInMapper = 模式.Value == 1;
+            bool IsMissileMode = 模式.Value == 1;
 
-            if(MissileGuidanceMode.Value == 2)
+            炮力.DisplayInMapper = !IsMissileMode;
+            计算间隔.DisplayInMapper = 模式.Value != 3;
+            精度.DisplayInMapper = 模式.Value != 3;
+            MissileGuidanceMode.DisplayInMapper = IsMissileMode;
+            MissileGuidanceModeSwitchButton.DisplayInMapper = IsMissileMode;
+            MissileTorqueSlider.DisplayInMapper = IsMissileMode;
+
+            if (MissileGuidanceMode.Value == 2)
             {
                 MissileHeightController.DisplayInMapper = true;
-                MissileHeightController.DisplayName = "目标上方高度";
+                //MissileHeightController.DisplayName = "目标上方高度";
+                MissileHeightController.DisplayName = "Height Above Target";
             }
             else if (MissileGuidanceMode.Value == 3)
             {
                 MissileHeightController.DisplayInMapper = true;
-                MissileHeightController.DisplayName = "高度";
+                //MissileHeightController.DisplayName = "高度";
+                MissileHeightController.DisplayName = "Height Above Ground";
             }
             else
             {
@@ -542,7 +642,7 @@ namespace Blocks
             else if (模式.Value == 0 && !IHaveConnectedWithCannons)
             {
                 IHaveConnectedWithCannons = false;
-                foreach (Joint Jo in this.GetComponent<GenericBlock>().jointsToMe)
+                foreach (Joint Jo in this.GetComponent<BlockBehaviour>().jointsToMe)
                 {
                     if (Jo.GetComponentInParent<CanonBlock>())
                     {
@@ -550,7 +650,7 @@ namespace Blocks
                         if (!IsOverLoaded)
                         {
                             cb.knockbackSpeed = 4250;
-                        } 
+                        }
                         else { cb.knockbackSpeed = 8000; }
                         IHaveConnectedWithCannons = true;
                         if (jointsToMe.Count == 1)
@@ -559,10 +659,9 @@ namespace Blocks
                         }
                     }
                     但是有两门炮 = 只有一门炮也是没有问题的 == null;
-                    
                 }
             }
-            
+
         }
         protected override void OnSimulateFixedUpdate()
         {
@@ -585,11 +684,11 @@ namespace Blocks
             if (!IsOverLoaded)
             {
                 bool aha;
-                    aha = ((前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 25f && 模式.Value == 0 && !IHaveConnectedWithCannons) 
+                    aha = ((前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 4f && 模式.Value == 0 && !IHaveConnectedWithCannons) 
                     || 
                     (IHaveConnectedWithCannons && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 12500f && 模式.Value == 0)
                     || 
-                    (模式.Value == 1 && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 200f)
+                    (模式.Value == 1 && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 1000f)
                     ;
                 if(aha)
                 {
@@ -606,6 +705,7 @@ namespace Blocks
             else
             {
                 Debug.Log("Overloaded! Tracking Computer CPU Damaged!");
+                Destroy(GetComponent<TrackingComputer>());
             }
 
             if (模式.Value == 0 && !IsOverLoaded)
@@ -623,8 +723,6 @@ namespace Blocks
             size = 1 * this.transform.localScale.x * this.transform.localScale.y * this.transform.localScale.z;
             this.GetComponent<Rigidbody>().mass = 2f * size;
             float FireProg = this.GetComponentInChildren<FireController>().fireProgress;
-            if (AddPiece.isSimulating)
-            {
                 if(只有一门炮也是没有问题的 && !但是有两门炮)
                 {
                     炮弹速度 = 只有一门炮也是没有问题的.GetComponent<BlockBehaviour>().Sliders[0].Value * 55;
@@ -692,7 +790,7 @@ namespace Blocks
                     Audio.Stop();
                 }
                 前一帧速度 = this.rigidbody.velocity;
-            }
+            
         }
         void MissileGuidanceComputerMode()
         {
@@ -768,10 +866,10 @@ namespace Blocks
                     //this.transform.rotation = Quaternion.LookRotation(rooo);
                     //LocalTargetDirection = new Vector3(LocalTargetDirection.x, LocalTargetDirection.y - this.transform.position.y, LocalTargetDirection.z);
                     //float mag = (LocalTargetDirection.normalized - transform.forward.normalized).magnitude;
-                    Vector3 TargetDirection = (getCorrTorque(this.transform.forward, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size * Mathf.Rad2Deg).normalized);
+                    Vector3 TargetDirection = (getCorrTorque(this.transform.forward, LocalTargetDirection - this.transform.position * 1, this.GetComponent<Rigidbody>(), 0.01f * size) * Mathf.Rad2Deg).normalized;
                     if (Vector3.Angle(transform.forward, LocalTargetDirection - this.transform.position * 1) < 105 || MissileGuidanceMode.Value != 0 || MissileGuidanceMode.Value != 1)
                     {
-                        this.GetComponent<Rigidbody>().angularVelocity = (TargetDirection * RotatingSpeed * 4);
+                        GetComponent<Rigidbody>().angularVelocity = (TargetDirection * RotatingSpeed * MissileTorqueSlider.Value);
                     }
                     else { Debug.Log("Target Lost!"); }
                 }
@@ -780,8 +878,6 @@ namespace Blocks
         }
         void CameraTrackingComputerMode()
         {
-            if (AddPiece.isSimulating)
-            {
                 if (currentTarget)
                 {
                     this.transform.LookAt(currentTarget.transform.position);
@@ -791,7 +887,7 @@ namespace Blocks
                     }
                     catch { }
                 }
-            }
+            
         }
 
         Vector3 MissileMode0 (Vector3 LocalTargetDirection,float FireProg)
@@ -802,30 +898,40 @@ namespace Blocks
                 float targetVelo = currentTarget.GetComponent<Rigidbody>().velocity.magnitude;
                 记录器 = 0;
                 //Debug.Log((currentTarget.GetComponent<Rigidbody>().velocity - 前一帧速度).magnitude);
-                LocalTargetDirection = calculateNoneLinearTrajectory(
+                LocalTargetDirection = calculateNoneLinearTrajectoryWithAccelerationPrediction(
                     炮弹速度 + 0.001f,
                     (this.GetComponent<Rigidbody>().velocity - 前一帧速度).magnitude,
-                    this.transform.position,
+                    transform.position,
                     targetVelo,
+                    目标前帧速度Mag - targetVelo,
                     currentTarget.transform.position,
                     currentTarget.GetComponent<Rigidbody>().velocity.normalized,
-                        calculateLinearTrajectory(
+                        calculateLinearTrajectoryWithAccelerationPrediction(
                             炮弹速度,
-                            this.transform.position,
+                            transform.position,
                             targetVelo,
+                            targetVelo - 目标前帧速度Mag,
                             currentTarget.transform.position,
-                            currentTarget.GetComponent<Rigidbody>().velocity.normalized
+                            currentTarget.GetComponent<Rigidbody>().velocity.normalized,
+                            calculateLinearTrajectory(
+                                炮弹速度,
+                                transform.position,
+                                targetVelo,
+                                currentTarget.transform.position,
+                                currentTarget.GetComponent<Rigidbody>().velocity.normalized),
+                            size * 精度.Value + 10 * size * FireProg
                         ),
                         Physics.gravity.y,
                         size * 精度.Value + 10 * size * FireProg,
                         float.PositiveInfinity
                         );
+                目标前帧速度Mag = targetVelo;
             }
             if(LocalTargetDirection.y == float.NaN)
             {
                 LocalTargetDirection = currentTarget.transform.position;
             }
-            前一帧速度 = this.GetComponent<Rigidbody>().velocity;
+            前一帧速度 = GetComponent<Rigidbody>().velocity;
             return LocalTargetDirection;
         }
 
@@ -927,7 +1033,7 @@ namespace Blocks
                                  KeyCode.Slash);       //默认按键
 
             炮力 = AddSlider("Cannon Slider",       //滑条信息
-                                    "CanonPower",       //名字
+                                    "strength",       //名字
                                     1f,            //默认值
                                     0f,          //最小值
                                     2f);           //最大值
@@ -977,7 +1083,7 @@ namespace Blocks
                                  KeyCode.Slash);       //默认按键
 
             炮力 = AddSlider("炮力",       //滑条信息
-                                    "CanonPower",       //名字
+                                    "strength",       //名字
                                     1f,            //默认值
                                     0f,          //最小值
                                     2f);           //最大值
@@ -1151,7 +1257,7 @@ namespace Blocks
                     }
                 }
             }
-            foreach (Joint Jo in this.GetComponent<GenericBlock>().jointsToMe)
+            foreach (Joint Jo in this.GetComponent<BlockBehaviour>().jointsToMe)
             {
                 IHaveConnectedWithCannons = false;
                 if(Jo.GetComponentInParent<CanonBlock>())
@@ -1202,7 +1308,7 @@ namespace Blocks
                 this.GetComponent<ConfigurableJoint>().angularYMotion = ConfigurableJointMotion.Locked;
             }
 
-            if (AddPiece.isSimulating && !HasBurnedOut())
+            if (!HasBurnedOut())
             {
                 记录器 += (计算间隔.Value / 100) * (1 - FireProg);
                 if (currentTarget?.GetComponent<Rigidbody>())
@@ -1218,7 +1324,7 @@ namespace Blocks
             if (!IsOverLoaded)
             {
                 IsOverLoaded = 
-                    ((前一帧速度 - this.GetComponent<Rigidbody>().velocity).sqrMagnitude >= 25f && 模式.Value == 0 && !IHaveConnectedWithCannons)
+                    ((前一帧速度 - this.GetComponent<Rigidbody>().velocity).sqrMagnitude >= 4f && 模式.Value == 0 && !IHaveConnectedWithCannons)
                     ||
                     (IHaveConnectedWithCannons && (前一帧速度 - this.rigidbody.velocity).sqrMagnitude >= 12500f * (Mathf.Log(97 - KnockBackBonusAdjuster.Value,2)) && 模式.Value == 0)
                     ;
@@ -1231,6 +1337,7 @@ namespace Blocks
             else
             {
                 Debug.Log("Overloaded!");
+                Destroy(GetComponent<ModifiedTurret>());
             }
             前一帧速度 = this.GetComponent<Rigidbody>().velocity;
 
@@ -1495,7 +1602,6 @@ namespace Blocks
             explo.AddComponent<TimedSelfDestruct>();
         }
     }
-    //Physics stuff
     public class TimedSelfDestruct : MonoBehaviour
     {
         float timer = 0;
